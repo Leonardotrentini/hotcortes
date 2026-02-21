@@ -363,10 +363,12 @@ export default async function handler(req, res) {
     );
 
     await createZip(clipFiles, zipPath);
+    console.log('Arquivo ZIP criado com sucesso.');
 
-    // Atualizar metadados
-    metadata.expectedDuration = durationSeconds;
-    metadata.numberOfClips = numberOfClips;
+    // Atualizar metadados - processamento completo
+    metadata.status = 'completed';
+    metadata.currentStep = 'Processamento concluído!';
+    metadata.progress = 100;
     metadata.processedAt = new Date().toISOString();
     fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 

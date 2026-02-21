@@ -114,13 +114,18 @@ export default async function handler(req, res) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Salvar metadados
+    // Salvar metadados com status inicial
     const metadata = {
       jobId,
       originalFilename: videoFile.originalFilename,
       uploadDate: new Date().toISOString(),
       videoPath: newPath,
       tmpDir: tmpDir,
+      status: 'uploaded',
+      progress: 0,
+      currentStep: 'Aguardando processamento...',
+      clipsCreated: 0,
+      numberOfClips: 0,
     };
 
     fs.writeFileSync(
