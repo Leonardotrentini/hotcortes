@@ -96,18 +96,31 @@ export default async function handler(req, res) {
   console.log('=== TESTE 2: Verificando FFprobe Static ===');
   try {
     diagnosis.ffprobe.installed = !!ffprobeStatic;
-    diagnosis.ffprobe.path = ffprobeStatic || 'NÃO ENCONTRADO';
     
+    // ffprobe-static retorna um objeto {path: "..."}, não uma string direta
+    let ffprobePath = null;
     if (ffprobeStatic) {
-      diagnosis.ffprobe.exists = fs.existsSync(ffprobeStatic);
+      if (typeof ffprobeStatic === 'string') {
+        ffprobePath = ffprobeStatic;
+      } else if (ffprobeStatic && ffprobeStatic.path) {
+        ffprobePath = ffprobeStatic.path;
+      } else {
+        ffprobePath = ffprobeStatic;
+      }
+    }
+    
+    diagnosis.ffprobe.path = ffprobePath || 'NÃO ENCONTRADO';
+    
+    if (ffprobePath) {
+      diagnosis.ffprobe.exists = fs.existsSync(ffprobePath);
       
       if (diagnosis.ffprobe.exists) {
         try {
           // Tentar configurar
-          ffmpeg.setFfprobePath(ffprobeStatic);
+          ffmpeg.setFfprobePath(ffprobePath);
           diagnosis.ffprobe.configured = true;
           diagnosis.ffprobe.executable = true;
-          console.log('✅ FFprobe encontrado e configurado:', ffprobeStatic);
+          console.log('✅ FFprobe encontrado e configurado:', ffprobePath);
         } catch (e) {
           diagnosis.ffprobe.error = e.message;
           diagnosis.summary.criticalIssues.push('FFprobe encontrado mas não pode ser configurado: ' + e.message);
@@ -115,8 +128,10 @@ export default async function handler(req, res) {
         }
       } else {
         diagnosis.ffprobe.error = 'Arquivo não existe no caminho especificado';
-        diagnosis.summary.criticalIssues.push('FFprobe não encontrado no caminho: ' + ffprobeStatic);
-        console.error('❌ FFprobe não existe:', ffprobeStatic);
+        diagnosis.summary.criticalIssues.push('FFprobe não encontrado no caminho: ' + ffprobePath);
+        console.error('❌ FFprobe não existe:', ffprobePath);
+        console.error('Tipo de ffprobeStatic:', typeof ffprobeStatic);
+        console.error('Valor de ffprobeStatic:', JSON.stringify(ffprobeStatic));
       }
     } else {
       diagnosis.ffprobe.error = 'ffprobe-static não retornou caminho';

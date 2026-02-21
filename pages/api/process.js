@@ -18,14 +18,26 @@ if (ffmpegStatic) {
 }
 
 // Configurar FFprobe separadamente
+// ffprobe-static retorna um objeto {path: "..."}, não uma string direta
+let ffprobePath = null;
 if (ffprobeStatic) {
-  const ffprobePath = ffprobeStatic;
-  if (fs.existsSync(ffprobePath)) {
+  // Extrair o caminho do objeto (ffprobe-static retorna {path: "..."})
+  if (typeof ffprobeStatic === 'string') {
+    ffprobePath = ffprobeStatic;
+  } else if (ffprobeStatic && ffprobeStatic.path) {
+    ffprobePath = ffprobeStatic.path;
+  } else {
+    ffprobePath = ffprobeStatic;
+  }
+  
+  if (ffprobePath && fs.existsSync(ffprobePath)) {
     ffmpeg.setFfprobePath(ffprobePath);
     console.log('FFprobe configurado:', ffprobePath);
     console.log('FFprobe existe:', fs.existsSync(ffprobePath));
   } else {
     console.warn('FFprobe não encontrado no caminho:', ffprobePath);
+    console.warn('ffprobeStatic tipo:', typeof ffprobeStatic);
+    console.warn('ffprobeStatic valor:', JSON.stringify(ffprobeStatic));
   }
 } else {
   console.warn('ffprobe-static não encontrado, tentando usar ffmpeg para análise');
@@ -184,8 +196,8 @@ export default async function handler(req, res) {
   console.log('RAILWAY env:', process.env.RAILWAY_ENVIRONMENT);
   console.log('FFmpeg path:', ffmpegPath);
   console.log('FFmpeg exists:', ffmpegPath ? fs.existsSync(ffmpegPath) : 'N/A');
-  console.log('FFprobe path:', ffprobeStatic);
-  console.log('FFprobe exists:', ffprobeStatic ? fs.existsSync(ffprobeStatic) : 'N/A');
+  console.log('FFprobe path:', ffprobePath);
+  console.log('FFprobe exists:', ffprobePath ? fs.existsSync(ffprobePath) : 'N/A');
 
   try {
     // Verificar FFmpeg antes de processar
@@ -230,13 +242,14 @@ export default async function handler(req, res) {
     console.log('Duração desejada:', durationSeconds, 'segundos');
 
     // Verificar se FFprobe está configurado antes de tentar usar
-    if (!ffprobeStatic || !fs.existsSync(ffprobeStatic)) {
+    if (!ffprobePath || !fs.existsSync(ffprobePath)) {
       console.error('FFprobe não está disponível!');
-      console.error('ffprobeStatic:', ffprobeStatic);
-      console.error('ffprobeStatic existe:', ffprobeStatic ? fs.existsSync(ffprobeStatic) : 'N/A');
+      console.error('ffprobePath:', ffprobePath);
+      console.error('ffprobePath existe:', ffprobePath ? fs.existsSync(ffprobePath) : 'N/A');
+      console.error('ffprobeStatic original:', JSON.stringify(ffprobeStatic));
       return res.status(500).json({ 
         error: 'FFprobe não está configurado ou não foi encontrado no servidor.',
-        details: `FFprobe path: ${ffprobeStatic || 'NÃO ENCONTRADO'}`,
+        details: `FFprobe path: ${ffprobePath || 'NÃO ENCONTRADO'}`,
         suggestion: 'Verifique se ffprobe-static está instalado corretamente.'
       });
     }
@@ -268,8 +281,8 @@ export default async function handler(req, res) {
       return res.status(500).json({ 
         error: 'Erro ao analisar vídeo. Verifique se o arquivo é um vídeo válido.',
         details: errorDetails,
-        ffprobePath: ffprobeStatic,
-        ffprobeExists: ffprobeStatic ? fs.existsSync(ffprobeStatic) : false,
+        ffprobePath: ffprobePath,
+        ffprobeExists: ffprobePath ? fs.existsSync(ffprobePath) : false,
         videoPath: videoPath,
         videoExists: fs.existsSync(videoPath)
       });
