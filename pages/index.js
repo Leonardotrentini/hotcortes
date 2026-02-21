@@ -16,7 +16,7 @@ const DURATIONS = [
 ];
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState('cortes'); // 'cortes' ou 'telegram'
+  const [activeTab, setActiveTab] = useState('cortes'); // 'cortes', 'telegram' ou 'mensagens'
   const [videoFile, setVideoFile] = useState(null);
   const [selectedDuration, setSelectedDuration] = useState('30s');
   const [jobId, setJobId] = useState(null);
@@ -61,6 +61,9 @@ export default function Home() {
   const handleDragLeave = (e) => {
     e.preventDefault();
     dragCounter.current--;
+    if (dragCounter.current === 0) {
+      // Remove visual feedback
+    }
   };
 
   const handleUpload = async () => {
@@ -69,84 +72,45 @@ export default function Home() {
       return;
     }
 
-    // Verificar tamanho
-    const maxSize = 500 * 1024 * 1024; // 500MB
-    if (videoFile.size > maxSize) {
-      alert(`❌ Arquivo muito grande!\n\nTamanho: ${formatFileSize(videoFile.size)}\nLimite: 500MB\n\nPor favor, comprima o vídeo antes de enviar.`);
-      return;
-    }
-
     setUploading(true);
+    const formData = new FormData();
+    formData.append('video', videoFile);
+    formData.append('duration', selectedDuration);
 
     try {
-      // Fazer upload direto (sem compressão no frontend)
-      const formData = new FormData();
-      formData.append('video', videoFile);
-
       const response = await axios.post('/api/upload', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          console.log(`Upload: ${percentCompleted}%`);
+        },
       });
 
-      if (response.data.success) {
+      if (response.data.jobId) {
         setJobId(response.data.jobId);
         setUploading(false);
-        
-        // Iniciar processamento
-        await handleProcess(response.data.jobId);
+        startProcessing(response.data.jobId);
       }
     } catch (error) {
       console.error('Erro no upload:', error);
-      let errorMessage = 'Erro desconhecido';
-      
-      if (error.response) {
-        // Erro da API
-        const status = error.response.status;
-        const data = error.response.data;
-        
-        if (status === 413) {
-          errorMessage = '❌ Arquivo muito grande!\n\nO arquivo excede o limite de 500MB.\nPor favor, comprima o vídeo antes de enviar.';
-        } else if (status === 400) {
-          errorMessage = data?.error || 'Arquivo inválido. Verifique o formato e tamanho.';
-        } else if (status === 500) {
-          errorMessage = 'Erro no servidor. Tente novamente em alguns instantes.';
-        } else {
-          errorMessage = data?.error || data?.message || `Erro ${status}: ${JSON.stringify(data)}`;
-        }
-      } else if (error.request) {
-        // Erro de rede
-        errorMessage = '❌ Erro de conexão!\n\nVerifique sua internet e tente novamente.';
-      } else {
-        // Outro erro
-        errorMessage = error.message || 'Erro ao fazer upload';
-      }
-      
-      alert('Erro ao fazer upload do vídeo:\n\n' + errorMessage);
       setUploading(false);
-    }
-  };
-
-  const handleProcess = async (id) => {
-    setProcessing(true);
-    try {
-      const response = await axios.post('/api/process', {
-        jobId: id || jobId,
-        duration: selectedDuration,
-      });
-
-      if (response.data.success) {
-        // Iniciar polling de status
-        startStatusPolling(id || jobId);
+      
+      if (error.response?.status === 413) {
+        alert('❌ Arquivo muito grande! O limite é 500MB. Por favor, comprima o vídeo antes de enviar.');
+      } else if (error.response?.data?.error) {
+        alert('❌ Erro: ' + error.response.data.error);
+      } else {
+        alert('❌ Erro ao fazer upload. Tente novamente.');
       }
-    } catch (error) {
-      console.error('Erro no processamento:', error);
-      alert('Erro ao processar vídeo: ' + (error.response?.data?.error || error.message));
-      setProcessing(false);
     }
   };
 
-  const startStatusPolling = (id) => {
+  const startProcessing = async (id) => {
+    setProcessing(true);
+    setStatus({ status: 'processing', progress: 0, currentStep: 'Iniciando processamento...' });
+
     let attempts = 0;
     const maxAttempts = 300; // 10 minutos (300 * 2s)
 
@@ -200,6 +164,12 @@ export default function Home() {
         >
           📱 Telegram Bot
         </button>
+        <button
+          className={`${styles.tab} ${activeTab === 'mensagens' ? styles.activeTab : ''}`}
+          onClick={() => setActiveTab('mensagens')}
+        >
+          💬 Gerador de Mensagens
+        </button>
       </div>
 
       {/* Conteúdo da Aba de Cortes */}
@@ -248,37 +218,32 @@ export default function Home() {
         )}
       </div>
 
-      <div className={styles.durationSection}>
-        <h2>2. Selecione a duração dos cortes</h2>
-        <div className={styles.durationGrid}>
-          {DURATIONS.map((dur) => (
-            <button
-              key={dur.value}
-              className={`${styles.durationBtn} ${
-                selectedDuration === dur.value ? styles.active : ''
-              }`}
-              onClick={() => setSelectedDuration(dur.value)}
-            >
-              {dur.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      {videoFile && (
+        <div className={styles.durationSection}>
+          <h2>2. Selecione a duração dos cortes</h2>
+          <div className={styles.durationGrid}>
+            {DURATIONS.map((duration) => (
+              <button
+                key={duration.value}
+                className={`${styles.durationBtn} ${
+                  selectedDuration === duration.value ? styles.activeDuration : ''
+                }`}
+                onClick={() => setSelectedDuration(duration.value)}
+              >
+                {duration.label}
+              </button>
+            ))}
+          </div>
 
-      <div className={styles.actions}>
-        <button
-          className={styles.processBtn}
-          onClick={handleUpload}
-          disabled={!videoFile || uploading || processing}
-        >
-          {uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '✂️ Processar Vídeo'}
-        </button>
-        {videoFile && (
-          <p style={{ textAlign: 'center', marginTop: '10px', color: '#666', fontSize: '0.9em' }}>
-            Tamanho do vídeo: {formatFileSize(videoFile.size)} {videoFile.size > 500 * 1024 * 1024 && '(⚠️ Acima de 500MB)'}
-          </p>
-        )}
-      </div>
+          <button
+            className={styles.processBtn}
+            onClick={handleUpload}
+            disabled={uploading || processing}
+          >
+            {uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '🚀 Processar Vídeo'}
+          </button>
+        </div>
+      )}
 
       {status && (
         <div className={styles.statusSection}>
@@ -338,6 +303,474 @@ export default function Home() {
       {/* Conteúdo da Aba de Telegram */}
       {activeTab === 'telegram' && (
         <TelegramTab />
+      )}
+
+      {/* Conteúdo da Aba de Gerador de Mensagens */}
+      {activeTab === 'mensagens' && (
+        <MessageGeneratorTab />
+      )}
+    </div>
+  );
+}
+
+// Componente da Aba Gerador de Mensagens
+function MessageGeneratorTab() {
+  const [step, setStep] = useState(1); // 1: Estratégia, 2: Produtos, 3: Resultado
+  const [strategy, setStrategy] = useState('');
+  const [productInfo, setProductInfo] = useState({
+    nome: '',
+    preco: '',
+    precoOriginal: '',
+    desconto: '',
+    caracteristicas: '',
+    beneficios: '',
+    publicoAlvo: '',
+    objeccoes: '',
+    garantia: '',
+    urgencia: '',
+    bonus: '',
+  });
+  const [generatedMessages, setGeneratedMessages] = useState([]);
+  const [cadence, setCadence] = useState([]);
+
+  const strategies = [
+    { value: 'order-bump', label: '🎯 Order Bump', description: 'Oferta adicional no checkout' },
+    { value: 'downsell', label: '📉 Downsell', description: 'Oferta de menor valor após recusa' },
+    { value: 'upsell', label: '📈 Upsell', description: 'Oferta de maior valor após compra' },
+    { value: 'cross-selling', label: '🔄 Cross-selling', description: 'Produtos complementares' },
+  ];
+
+  const generateMessages = () => {
+    if (!strategy || !productInfo.nome) {
+      alert('Por favor, preencha todos os campos obrigatórios!');
+      return;
+    }
+
+    const messages = [];
+    const cadenceData = [];
+
+    // Mensagens baseadas na estratégia
+    if (strategy === 'order-bump') {
+      messages.push(...generateOrderBumpMessages());
+      cadenceData.push(...generateOrderBumpCadence());
+    } else if (strategy === 'downsell') {
+      messages.push(...generateDownsellMessages());
+      cadenceData.push(...generateDownsellCadence());
+    } else if (strategy === 'upsell') {
+      messages.push(...generateUpsellMessages());
+      cadenceData.push(...generateUpsellCadence());
+    } else if (strategy === 'cross-selling') {
+      messages.push(...generateCrossSellingMessages());
+      cadenceData.push(...generateCrossSellingCadence());
+    }
+
+    setGeneratedMessages(messages);
+    setCadence(cadenceData);
+    setStep(3);
+  };
+
+  const generateOrderBumpMessages = () => {
+    const { nome, preco, desconto, beneficios, bonus } = productInfo;
+    return [
+      {
+        type: 'Abertura',
+        message: `🔥 ATENÇÃO! Você está prestes a perder uma oportunidade ÚNICA!\n\nEnquanto você finaliza sua compra, temos uma oferta ESPECIAL que só está disponível AGORA:\n\n✨ ${nome}\n\n💰 De R$ ${preco} por apenas R$ ${desconto || preco}\n\n${beneficios ? `🎁 ${beneficios}` : ''}\n\n⏰ Esta oferta expira em alguns minutos!`,
+        timing: 'Imediato (no checkout)'
+      },
+      {
+        type: 'Urgência',
+        message: `⏰ ÚLTIMOS SEGUNDOS!\n\nVocê ainda está aqui? Perfeito! Ainda dá tempo de garantir:\n\n${nome}\n\n${bonus ? `🎁 BÔNUS EXCLUSIVO: ${bonus}` : ''}\n\n💰 Apenas R$ ${desconto || preco} - Esta é sua última chance!`,
+        timing: '2 minutos após checkout'
+      },
+      {
+        type: 'Fechamento',
+        message: `💔 Sentimos muito, mas a oferta especial de ${nome} está prestes a expirar...\n\nMas ainda temos uma última chance para você:\n\n✅ ${nome}\n✅ ${beneficios || 'Benefícios exclusivos'}\n✅ ${bonus || 'Bônus especial'}\n\n💰 R$ ${desconto || preco} - Última oportunidade!`,
+        timing: '5 minutos após checkout'
+      }
+    ];
+  };
+
+  const generateDownsellMessages = () => {
+    const { nome, preco, precoOriginal, desconto, caracteristicas, beneficios } = productInfo;
+    return [
+      {
+        type: 'Reconhecimento',
+        message: `Olá! 👋\n\nEntendemos que R$ ${precoOriginal} pode ser um investimento significativo no momento.\n\nMas não queremos que você perca essa oportunidade! Por isso, preparamos algo ESPECIAL:\n\n🎯 ${nome}\n\n${caracteristicas ? `✨ ${caracteristicas}` : ''}\n\n💰 De R$ ${precoOriginal} por apenas R$ ${desconto || preco}\n\n${beneficios ? `🎁 ${beneficios}` : ''}\n\nEsta é uma oportunidade única!`,
+        timing: 'Imediato (após recusa)'
+      },
+      {
+        type: 'Valor',
+        message: `💎 Você ainda está pensando?\n\nVamos ser diretos: ${nome} é uma oportunidade REAL de transformação.\n\n${beneficios || 'Benefícios exclusivos que você não encontrará em outro lugar.'}\n\n💰 Por apenas R$ ${desconto || preco} - Menos que um jantar fora!\n\nVale a pena? ABSOLUTAMENTE!`,
+        timing: '1 hora após recusa'
+      },
+      {
+        type: 'Última Chance',
+        message: `⏰ ÚLTIMA CHANCE!\n\nEsta é realmente sua última oportunidade de garantir ${nome}.\n\n💰 R$ ${desconto || preco}\n\n${beneficios || 'Todos os benefícios que você precisa.'}\n\nNão deixe essa oportunidade passar. Esta oferta não voltará!`,
+        timing: '24 horas após recusa'
+      }
+    ];
+  };
+
+  const generateUpsellMessages = () => {
+    const { nome, preco, beneficios, bonus, garantia } = productInfo;
+    return [
+      {
+        type: 'Parabéns',
+        message: `🎉 PARABÉNS pela sua compra!\n\nVocê tomou uma decisão inteligente! E agora, temos algo AINDA MELHOR para você:\n\n🚀 ${nome}\n\n${beneficios ? `✨ ${beneficios}` : ''}\n\n${bonus ? `🎁 BÔNUS EXCLUSIVO: ${bonus}` : ''}\n\n💰 Apenas R$ ${preco}\n\n${garantia ? `✅ ${garantia}` : '✅ Garantia total'}\n\nQuer potencializar ainda mais seus resultados?`,
+        timing: 'Imediato (após compra)'
+      },
+      {
+        type: 'Oportunidade',
+        message: `💎 Oportunidade Exclusiva!\n\nComo você já é nosso cliente, temos uma oferta ESPECIAL:\n\n${nome}\n\n${beneficios || 'Benefícios que complementam perfeitamente sua compra anterior.'}\n\n💰 R$ ${preco} - Apenas para clientes VIP!\n\nEsta oferta é limitada e exclusiva.`,
+        timing: '2 horas após compra'
+      },
+      {
+        type: 'Fechamento',
+        message: `⏰ Últimas horas desta oferta especial!\n\n${nome} ainda está disponível para você:\n\n${beneficios || 'Todos os benefícios exclusivos'}\n\n💰 R$ ${preco}\n\n${garantia || 'Garantia total de satisfação'}\n\nNão perca esta última chance!`,
+        timing: '48 horas após compra'
+      }
+    ];
+  };
+
+  const generateCrossSellingMessages = () => {
+    const { nome, preco, caracteristicas, beneficios } = productInfo;
+    return [
+      {
+        type: 'Recomendação',
+        message: `💡 Recomendação Especial para Você!\n\nBaseado no que você já tem, recomendamos:\n\n🔄 ${nome}\n\n${caracteristicas ? `✨ ${caracteristicas}` : ''}\n\n${beneficios ? `🎁 ${beneficios}` : 'Perfeito para complementar sua experiência.'}\n\n💰 Apenas R$ ${preco}\n\nQuer potencializar ainda mais seus resultados?`,
+        timing: 'Imediato (após compra)'
+      },
+      {
+        type: 'Combo',
+        message: `🎁 Oferta Combo Exclusiva!\n\nVocê já tem o produto principal. Que tal completar sua experiência?\n\n${nome}\n\n${beneficios || 'Ideal para usar junto com o que você já tem.'}\n\n💰 R$ ${preco}\n\nUse junto e veja a diferença!`,
+        timing: '6 horas após compra'
+      },
+      {
+        type: 'Lembrete',
+        message: `💭 Lembrete Amigável!\n\nAinda está pensando em ${nome}?\n\n${beneficios || 'É a peça que falta para completar sua experiência.'}\n\n💰 R$ ${preco}\n\nVale muito a pena!`,
+        timing: '72 horas após compra'
+      }
+    ];
+  };
+
+  const generateOrderBumpCadence = () => [
+    { momento: 'Checkout', tempo: 'Imediato', acao: 'Exibir oferta no checkout' },
+    { momento: 'Após 2 min', tempo: '2 minutos', acao: 'Enviar mensagem de urgência' },
+    { momento: 'Após 5 min', tempo: '5 minutos', acao: 'Enviar última chance' },
+  ];
+
+  const generateDownsellCadence = () => [
+    { momento: 'Recusa', tempo: 'Imediato', acao: 'Enviar oferta downsell' },
+    { momento: 'Após 1h', tempo: '1 hora', acao: 'Enviar mensagem de valor' },
+    { momento: 'Após 24h', tempo: '24 horas', acao: 'Enviar última chance' },
+  ];
+
+  const generateUpsellCadence = () => [
+    { momento: 'Compra', tempo: 'Imediato', acao: 'Enviar parabéns + upsell' },
+    { momento: 'Após 2h', tempo: '2 horas', acao: 'Enviar oferta exclusiva' },
+    { momento: 'Após 48h', tempo: '48 horas', acao: 'Enviar fechamento' },
+  ];
+
+  const generateCrossSellingCadence = () => [
+    { momento: 'Compra', tempo: 'Imediato', acao: 'Enviar recomendação' },
+    { momento: 'Após 6h', tempo: '6 horas', acao: 'Enviar oferta combo' },
+    { momento: 'Após 72h', tempo: '72 horas', acao: 'Enviar lembrete' },
+  ];
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    alert('✅ Mensagem copiada para a área de transferência!');
+  };
+
+  return (
+    <div className={styles.messageGeneratorSection}>
+      <h2>💬 Gerador de Mensagens de Vendas</h2>
+      
+      {step === 1 && (
+        <div className={styles.strategySelection}>
+          <h3>1. Selecione a Estratégia</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px', marginTop: '20px' }}>
+            {strategies.map((strat) => (
+              <button
+                key={strat.value}
+                onClick={() => {
+                  setStrategy(strat.value);
+                  setStep(2);
+                }}
+                className={styles.strategyBtn}
+                style={{
+                  padding: '20px',
+                  background: strategy === strat.value ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white',
+                  color: strategy === strat.value ? 'white' : '#333',
+                  border: '2px solid #667eea',
+                  borderRadius: '10px',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.3s'
+                }}
+              >
+                <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '5px' }}>
+                  {strat.label}
+                </div>
+                <div style={{ fontSize: '0.9em', opacity: 0.9 }}>
+                  {strat.description}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {step === 2 && (
+        <div className={styles.productForm}>
+          <h3>2. Informações do Produto</h3>
+          <p style={{ color: '#666', marginBottom: '20px' }}>
+            Preencha as informações abaixo para gerar mensagens personalizadas e assertivas
+          </p>
+          
+          <form onSubmit={(e) => { e.preventDefault(); generateMessages(); }}>
+            <div style={{ display: 'grid', gap: '15px' }}>
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                  Nome do Produto *
+                </label>
+                <input
+                  type="text"
+                  value={productInfo.nome}
+                  onChange={(e) => setProductInfo({...productInfo, nome: e.target.value})}
+                  className={styles.formInput}
+                  required
+                  placeholder="Ex: Curso Completo de..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                    Preço Original (R$)
+                  </label>
+                  <input
+                    type="text"
+                    value={productInfo.precoOriginal}
+                    onChange={(e) => setProductInfo({...productInfo, precoOriginal: e.target.value})}
+                    className={styles.formInput}
+                    placeholder="Ex: 297"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                    Preço com Desconto (R$)
+                  </label>
+                  <input
+                    type="text"
+                    value={productInfo.preco}
+                    onChange={(e) => setProductInfo({...productInfo, preco: e.target.value})}
+                    className={styles.formInput}
+                    placeholder="Ex: 97"
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                    % de Desconto
+                  </label>
+                  <input
+                    type="text"
+                    value={productInfo.desconto}
+                    onChange={(e) => setProductInfo({...productInfo, desconto: e.target.value})}
+                    className={styles.formInput}
+                    placeholder="Ex: 67% OFF"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                  Características Principais
+                </label>
+                <textarea
+                  value={productInfo.caracteristicas}
+                  onChange={(e) => setProductInfo({...productInfo, caracteristicas: e.target.value})}
+                  className={styles.formInput}
+                  rows={3}
+                  placeholder="Ex: Acesso vitalício, Suporte exclusivo, Conteúdo atualizado..."
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                  Benefícios (O que o cliente ganha)
+                </label>
+                <textarea
+                  value={productInfo.beneficios}
+                  onChange={(e) => setProductInfo({...productInfo, beneficios: e.target.value})}
+                  className={styles.formInput}
+                  rows={3}
+                  placeholder="Ex: Transforme sua vida, Ganhe mais dinheiro, Tenha mais liberdade..."
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                  Público-Alvo
+                </label>
+                <input
+                  type="text"
+                  value={productInfo.publicoAlvo}
+                  onChange={(e) => setProductInfo({...productInfo, publicoAlvo: e.target.value})}
+                  className={styles.formInput}
+                  placeholder="Ex: Pessoas que querem melhorar sua vida íntima..."
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                  Objeções Comuns (O que pode impedir a compra)
+                </label>
+                <textarea
+                  value={productInfo.objeccoes}
+                  onChange={(e) => setProductInfo({...productInfo, objeccoes: e.target.value})}
+                  className={styles.formInput}
+                  rows={2}
+                  placeholder="Ex: Muito caro, Não tenho tempo, Já tentei antes..."
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                    Garantia
+                  </label>
+                  <input
+                    type="text"
+                    value={productInfo.garantia}
+                    onChange={(e) => setProductInfo({...productInfo, garantia: e.target.value})}
+                    className={styles.formInput}
+                    placeholder="Ex: 7 dias, 30 dias, Garantia total..."
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                    Urgência/Exclusividade
+                  </label>
+                  <input
+                    type="text"
+                    value={productInfo.urgencia}
+                    onChange={(e) => setProductInfo({...productInfo, urgencia: e.target.value})}
+                    className={styles.formInput}
+                    placeholder="Ex: Oferta por tempo limitado, Últimas vagas..."
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                    Bônus/Extras
+                  </label>
+                  <input
+                    type="text"
+                    value={productInfo.bonus}
+                    onChange={(e) => setProductInfo({...productInfo, bonus: e.target.value})}
+                    className={styles.formInput}
+                    placeholder="Ex: Bônus exclusivo, Material extra..."
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                <button
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className={styles.deleteBtn}
+                >
+                  ← Voltar
+                </button>
+                <button
+                  type="submit"
+                  className={styles.scheduleBtn}
+                  style={{ flex: 1 }}
+                >
+                  🚀 Gerar Mensagens e Cadência
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {step === 3 && (
+        <div className={styles.resultsSection}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <h3>3. Mensagens Geradas</h3>
+            <button
+              onClick={() => {
+                setStep(1);
+                setGeneratedMessages([]);
+                setCadence([]);
+              }}
+              className={styles.refreshBtn}
+            >
+              🔄 Gerar Novamente
+            </button>
+          </div>
+
+          <div style={{ marginBottom: '30px' }}>
+            <h4 style={{ marginBottom: '15px' }}>📅 Cadência de Envio</h4>
+            <div style={{ background: 'white', padding: '15px', borderRadius: '10px', border: '2px solid #e0e7ff' }}>
+              {cadence.map((item, index) => (
+                <div key={index} style={{ 
+                  padding: '10px', 
+                  borderBottom: index < cadence.length - 1 ? '1px solid #eee' : 'none',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <strong>{item.momento}</strong>
+                    <div style={{ fontSize: '0.85em', color: '#666' }}>{item.tempo}</div>
+                  </div>
+                  <div style={{ color: '#667eea', fontWeight: '600' }}>{item.acao}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h4 style={{ marginBottom: '15px' }}>💬 Mensagens</h4>
+            {generatedMessages.map((msg, index) => (
+              <div key={index} style={{
+                background: 'white',
+                padding: '20px',
+                borderRadius: '10px',
+                marginBottom: '15px',
+                border: '2px solid #e0e7ff'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div>
+                    <strong style={{ color: '#667eea' }}>{msg.type}</strong>
+                    <div style={{ fontSize: '0.85em', color: '#666', marginTop: '5px' }}>
+                      ⏰ {msg.timing}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => copyToClipboard(msg.message)}
+                    className={styles.editBtn}
+                    style={{ padding: '8px 16px' }}
+                  >
+                    📋 Copiar
+                  </button>
+                </div>
+                <div style={{
+                  background: '#f5f5f5',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  whiteSpace: 'pre-wrap',
+                  lineHeight: '1.6',
+                  fontSize: '0.95em'
+                }}>
+                  {msg.message}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );
@@ -678,6 +1111,29 @@ function TelegramTab() {
     }
   };
 
+  const handleEditPost = async (e) => {
+    e.preventDefault();
+    
+    if (!selectedPost) return;
+
+    try {
+      const response = await axios.put(`/api/telegram/scheduled/${selectedPost.id}`, {
+        message: selectedPost.message,
+        scheduledFor: selectedPost.scheduledFor,
+        mediaUrl: selectedPost.mediaUrl || null,
+      });
+
+      if (response.data.success) {
+        alert('✅ Postagem atualizada com sucesso!');
+        setShowEditModal(false);
+        setSelectedPost(null);
+        loadScheduledPosts();
+      }
+    } catch (error) {
+      alert('❌ Erro ao atualizar postagem: ' + (error.response?.data?.error || error.message));
+    }
+  };
+
   const handleAddChannel = async (e) => {
     e.preventDefault();
     
@@ -715,29 +1171,6 @@ function TelegramTab() {
     }
   };
 
-  const handleEditPost = async (e) => {
-    e.preventDefault();
-    
-    if (!selectedPost) return;
-
-    try {
-      const response = await axios.put(`/api/telegram/scheduled/${selectedPost.id}`, {
-        message: selectedPost.message,
-        scheduledFor: selectedPost.scheduledFor,
-        mediaUrl: selectedPost.mediaUrl || null,
-      });
-
-      if (response.data.success) {
-        alert('✅ Postagem atualizada com sucesso!');
-        setShowEditModal(false);
-        setSelectedPost(null);
-        loadScheduledPosts();
-      }
-    } catch (error) {
-      alert('❌ Erro ao atualizar postagem: ' + (error.response?.data?.error || error.message));
-    }
-  };
-
   // Carregar status ao montar componente
   useEffect(() => {
     checkConnection();
@@ -764,169 +1197,151 @@ function TelegramTab() {
           className={styles.manualBtn}
           onClick={() => setShowManual(!showManual)}
         >
-          {showManual ? '📖 Ocultar Manual' : '📖 Ver Manual: Como Criar e Configurar o Bot'}
+          {showManual ? '📖 Ocultar Manual' : '📖 Ver Manual de Configuração'}
         </button>
-
         {showManual && (
           <div className={styles.manualContent}>
-            <h3>📚 Manual Completo - Bot Telegram</h3>
-            
-            <div className={styles.manualStep}>
-              <h4>Passo 1: Criar o Bot no Telegram</h4>
-              <ol>
-                <li>Abra o Telegram e procure por <strong>@BotFather</strong></li>
-                <li>Inicie uma conversa e envie: <code>/newbot</code></li>
-                <li>Escolha um nome para seu bot (ex: "Meu Bot de Postagens")</li>
-                <li>Escolha um username único (deve terminar com "bot", ex: "meubot_postagens_bot")</li>
-                <li>O BotFather retornará um <strong>TOKEN</strong> - copie e guarde!</li>
-              </ol>
-              <p><strong>⚠️ Importante:</strong> Nunca compartilhe seu token com ninguém!</p>
-            </div>
-
-            <div className={styles.manualStep}>
-              <h4>Passo 2: Adicionar o Bot aos Canais</h4>
-              <ol>
-                <li>Vá até o canal onde deseja postar</li>
-                <li>Clique em <strong>Administradores</strong> → <strong>Adicionar Administrador</strong></li>
-                <li>Procure pelo username do seu bot (ex: @meubot_postagens_bot)</li>
-                <li>Dê permissão de <strong>"Postar Mensagens"</strong></li>
-                <li>Opcional: Dê outras permissões se necessário</li>
-              </ol>
-              <p><strong>💡 Dica:</strong> O bot precisa ser administrador do canal para postar!</p>
-            </div>
-
-            <div className={styles.manualStep}>
-              <h4>Passo 3: Obter o ID do Canal</h4>
-              <ol>
-                <li>Adicione o bot <strong>@userinfobot</strong> ao seu canal</li>
-                <li>Ou use o formato: <code>@canaisual</code> (se o canal for público)</li>
-                <li>O ID do canal será mostrado automaticamente quando você conectar o bot aqui</li>
-              </ol>
-              <p><strong>💡 Alternativa:</strong> Use o formato <code>@nome_do_canal</code> se o canal for público</p>
-            </div>
-
-            <div className={styles.manualStep}>
-              <h4>Passo 4: Conectar o Bot Aqui</h4>
-              <ol>
-                <li>Cole o token do BotFather no campo abaixo</li>
-                <li>Clique em "Conectar Bot"</li>
-                <li>Se conectado, os canais aparecerão automaticamente</li>
-              </ol>
-            </div>
-
-            <div className={styles.manualStep}>
-              <h4>📝 Formato do Token</h4>
-              <p>O token tem este formato:</p>
-              <code>123456789:ABCdefGHIjklMNOpqrsTUVwxyz</code>
-              <p>Geralmente tem cerca de 45-50 caracteres</p>
-            </div>
+            <h3>📚 Como Criar e Configurar seu Bot Telegram</h3>
+            <ol>
+              <li>
+                <strong>1. Criar o Bot:</strong>
+                <ul>
+                  <li>Abra o Telegram e procure por <strong>@BotFather</strong></li>
+                  <li>Envie o comando <code>/newbot</code></li>
+                  <li>Siga as instruções para dar um nome e username ao seu bot</li>
+                  <li>Copie o <strong>token</strong> fornecido pelo BotFather</li>
+                </ul>
+              </li>
+              <li>
+                <strong>2. Adicionar Bot ao Canal:</strong>
+                <ul>
+                  <li>Vá nas configurações do seu canal</li>
+                  <li>Selecione "Administradores"</li>
+                  <li>Adicione seu bot como administrador</li>
+                  <li>Dê permissão para "Enviar mensagens"</li>
+                </ul>
+              </li>
+              <li>
+                <strong>3. Obter ID do Canal:</strong>
+                <ul>
+                  <li>Adicione o bot <strong>@userinfobot</strong> ao seu canal</li>
+                  <li>Ou use o formato <code>-1001234567890</code> (número negativo)</li>
+                  <li>O ID aparecerá nas informações do canal</li>
+                </ul>
+              </li>
+              <li>
+                <strong>4. Conectar:</strong>
+                <ul>
+                  <li>Cole o token do BotFather abaixo</li>
+                  <li>Clique em "Conectar Bot"</li>
+                  <li>Adicione os canais onde deseja postar</li>
+                </ul>
+              </li>
+            </ol>
           </div>
         )}
       </div>
 
       {/* Conexão do Bot */}
-      <div className={styles.botConnection}>
-        <h3>🔌 Conectar Bot</h3>
-        {!isConnected ? (
+      {!isConnected ? (
+        <div className={styles.connectSection}>
+          <h3>🔌 Conectar Bot</h3>
           <div className={styles.connectForm}>
             <input
-              type="password"
-              placeholder="Cole aqui o token do BotFather"
+              type="text"
+              placeholder="Cole o token do BotFather aqui..."
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
               className={styles.tokenInput}
             />
             <button
               onClick={handleConnect}
-              disabled={loading || !botToken}
               className={styles.connectBtn}
+              disabled={loading}
             >
               {loading ? '⏳ Conectando...' : '🔗 Conectar Bot'}
             </button>
           </div>
-        ) : (
-          <div className={styles.connectedStatus}>
-            <p>✅ Bot conectado: {botToken}</p>
+        </div>
+      ) : (
+        <div className={styles.connectedSection}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+            <div>
+              <h3>✅ Bot Conectado</h3>
+              <p style={{ color: '#666', fontSize: '0.9em' }}>Token: {botToken}</p>
+            </div>
             <button onClick={handleDisconnect} className={styles.disconnectBtn}>
               🔌 Desconectar
             </button>
-            <button onClick={loadChannels} className={styles.refreshBtn}>
-              🔄 Atualizar Canais
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* Lista de Canais */}
-      {isConnected && (
-        <div className={styles.channelsSection}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3>📺 Canais Disponíveis</h3>
-            <button
-              onClick={() => setShowAddChannel(!showAddChannel)}
-              className={styles.addChannelBtn}
-            >
-              {showAddChannel ? '❌ Cancelar' : '➕ Adicionar Canal'}
-            </button>
           </div>
 
-          {/* Formulário para adicionar canal */}
-          {showAddChannel && (
-            <form onSubmit={handleAddChannel} className={styles.addChannelForm}>
-              <input
-                type="text"
-                placeholder="ID do Canal (ex: -1001234567890 ou @nome_do_canal)"
-                value={newChannel.id}
-                onChange={(e) => setNewChannel({ ...newChannel, id: e.target.value })}
-                required
-                className={styles.formInput}
-                style={{ marginBottom: '10px' }}
-              />
-              <input
-                type="text"
-                placeholder="Nome do Canal (opcional)"
-                value={newChannel.title}
-                onChange={(e) => setNewChannel({ ...newChannel, title: e.target.value })}
-                className={styles.formInput}
-                style={{ marginBottom: '10px' }}
-              />
-              <button type="submit" className={styles.addChannelSubmitBtn}>
-                ✅ Adicionar Canal
+          {/* Canais */}
+          <div className={styles.channelsSection}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <h3>📢 Canais</h3>
+              <button
+                onClick={() => setShowAddChannel(!showAddChannel)}
+                className={styles.addChannelBtn}
+              >
+                {showAddChannel ? '❌ Cancelar' : '➕ Adicionar Canal'}
               </button>
-            </form>
-          )}
-
-          {channels.length > 0 ? (
-            <div className={styles.channelsList}>
-              {channels.map((channel) => (
-                <div key={channel.id} className={styles.channelItem}>
-                  <div style={{ flex: 1 }}>
-                    <strong>{channel.title || channel.username || `Canal ${channel.id}`}</strong>
-                    <span className={styles.channelId}>ID: {channel.id}</span>
-                    {channel.username && (
-                      <span className={styles.channelUsername}>@{channel.username}</span>
-                    )}
-                    {channel.error && (
-                      <span style={{ display: 'block', color: '#f44336', fontSize: '0.85em', marginTop: '5px' }}>
-                        ⚠️ {channel.error}
-                      </span>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => handleRemoveChannel(channel.id)}
-                    className={styles.removeChannelBtn}
-                    title="Remover canal"
-                  >
-                    🗑️
-                  </button>
-                </div>
-              ))}
             </div>
-          ) : (
-            <p style={{ color: '#666', textAlign: 'center', padding: '20px' }}>
-              Nenhum canal adicionado. Clique em "➕ Adicionar Canal" para começar.
-            </p>
-          )}
+
+            {showAddChannel && (
+              <form onSubmit={handleAddChannel} className={styles.addChannelForm}>
+                <input
+                  type="text"
+                  placeholder="ID do Canal (ex: -1001234567890 ou @username)"
+                  value={newChannel.id}
+                  onChange={(e) => setNewChannel({...newChannel, id: e.target.value})}
+                  className={styles.formInput}
+                  required
+                />
+                <input
+                  type="text"
+                  placeholder="Nome do Canal (opcional)"
+                  value={newChannel.title}
+                  onChange={(e) => setNewChannel({...newChannel, title: e.target.value})}
+                  className={styles.formInput}
+                />
+                <button type="submit" className={styles.scheduleBtn}>
+                  ✅ Adicionar
+                </button>
+              </form>
+            )}
+
+            {channels.length > 0 ? (
+              <div className={styles.channelsList}>
+                {channels.map((channel) => (
+                  <div key={channel.id} className={styles.channelItem}>
+                    <div style={{ flex: 1 }}>
+                      <strong>{channel.title || channel.username || `Canal ${channel.id}`}</strong>
+                      <span className={styles.channelId}>ID: {channel.id}</span>
+                      {channel.username && (
+                        <span className={styles.channelUsername}>@{channel.username}</span>
+                      )}
+                      {channel.error && (
+                        <span style={{ display: 'block', color: '#f44336', fontSize: '0.85em', marginTop: '5px' }}>
+                          ⚠️ {channel.error}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleRemoveChannel(channel.id)}
+                      className={styles.removeChannelBtn}
+                      title="Remover canal"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ color: '#666', textAlign: 'center', padding: '20px' }}>
+                Nenhum canal adicionado. Clique em "➕ Adicionar Canal" para começar.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
@@ -1394,7 +1809,7 @@ function TelegramTab() {
                         </div>
                       );
                     })}
-                  </div>
+                    </div>
                 );
               })}
             </div>
