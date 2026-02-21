@@ -1,11 +1,12 @@
 {
   "name": "corteshot",
   "version": "1.0.0",
-  "description": "Ferramenta de corte de vídeos - Deploy Vercel",
+  "description": "Ferramenta de corte de vídeos - Deploy Render",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -p ${PORT:-3000}",
+    "postinstall": "echo 'FFmpeg será instalado automaticamente pelo Render'"
   },
   "dependencies": {
     "next": "^14.0.0",
@@ -25,5 +26,9 @@
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
   }
 }

@@ -27,8 +27,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Usar /tmp para armazenamento temporário na Vercel
-    const tmpDir = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), 'uploads');
+    // Usar /tmp no Render/Vercel ou diretório local
+    const tmpDir = (process.env.VERCEL || process.env.RENDER) ? '/tmp' : path.join(process.cwd(), 'uploads');
     const uploadsDir = path.join(tmpDir, 'uploads');
     
     if (!fs.existsSync(uploadsDir)) {

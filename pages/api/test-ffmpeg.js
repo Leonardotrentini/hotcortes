@@ -13,8 +13,9 @@ export default function handler(req, res) {
       ffmpegStatic: ffmpegStatic || 'Não encontrado',
       ffmpegExists: ffmpegStatic ? fs.existsSync(ffmpegStatic) : false,
       vercel: !!process.env.VERCEL,
+      render: !!process.env.RENDER,
       nodeEnv: process.env.NODE_ENV,
-      tmpDir: process.env.VERCEL ? '/tmp' : path.join(process.cwd(), 'uploads'),
+      tmpDir: (process.env.VERCEL || process.env.RENDER) ? '/tmp' : path.join(process.cwd(), 'uploads'),
       canWriteTmp: false,
       ffmpegVersion: null,
     };

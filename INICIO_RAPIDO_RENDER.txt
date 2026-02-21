@@ -1,0 +1,71 @@
+═══════════════════════════════════════════════════════════
+  🚀 DEPLOY RÁPIDO NO RENDER - 3 PASSOS
+═══════════════════════════════════════════════════════════
+
+1️⃣ CRIAR CONTA E CONECTAR GITHUB
+   ─────────────────────────────────────────────────────
+   • Acesse: https://render.com
+   • Faça login com GitHub
+   • Autorize acesso aos repositórios
+
+
+2️⃣ CRIAR SERVIÇO WEB
+   ─────────────────────────────────────────────────────
+   • Clique em "New +" → "Web Service"
+   • Selecione repositório: hotcortes
+   • Configurações:
+     - Build Command: npm install && npm run build
+     - Start Command: npm start
+     - Plan: Free
+   • Adicionar variáveis:
+     - NODE_ENV = production
+     - PORT = 10000
+   • Clique em "Create Web Service"
+
+
+3️⃣ AGUARDAR DEPLOY
+   ─────────────────────────────────────────────────────
+   • Aguarde 5-10 minutos
+   • Veja os logs em tempo real
+   • Quando aparecer "Your service is live" = Pronto! 🎉
+
+
+═══════════════════════════════════════════════════════════
+  ⚙️ CONFIGURAÇÕES (JÁ FEITAS)
+═══════════════════════════════════════════════════════════
+
+✅ render.yaml - Configuração do Render
+✅ package.json - Scripts ajustados
+✅ Código adaptado para Render
+✅ FFmpeg configurado
+
+
+═══════════════════════════════════════════════════════════
+  ⚠️ IMPORTANTE
+═══════════════════════════════════════════════════════════
+
+✅ FFmpeg funcionará normalmente (Render suporta binários)
+✅ Sem limite de timeout rígido (diferente da Vercel)
+✅ Aplicação "dorme" após 15min (primeira requisição pode ser lenta)
+✅ Deploy automático a cada git push
+
+
+═══════════════════════════════════════════════════════════
+  🔄 ATUALIZAR DEPLOY (Futuro)
+═══════════════════════════════════════════════════════════
+
+git add .
+git commit -m "Atualização"
+git push
+
+O Render faz deploy automático! 🚀
+
+
+═══════════════════════════════════════════════════════════
+  📖 DOCUMENTAÇÃO COMPLETA
+═══════════════════════════════════════════════════════════
+
+Leia: DEPLOY_RENDER.md (guia completo e detalhado)
+
+
+═══════════════════════════════════════════════════════════
