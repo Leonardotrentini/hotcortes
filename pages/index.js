@@ -253,20 +253,16 @@ export default function Home() {
           console.log('Iniciando compressão automática...');
           fileToUpload = await compressVideo(videoFile);
           
-          // Aguardar um pouco para garantir que compressionInfo foi atualizado
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // Verificar resultado da compressão
-          const currentInfo = compressionInfo;
-          if (!currentInfo || !currentInfo.success || fileToUpload.size > maxSize) {
-            console.log('Compressão não foi suficiente:', currentInfo);
+          // Verificar resultado da compressão baseado no tamanho do arquivo
+          if (fileToUpload.size > maxSize) {
+            console.log('Compressão não foi suficiente. Tamanho:', fileToUpload.size, 'MB');
             setUploading(false);
-            // A mensagem já será mostrada pelo componente de UI
+            // A mensagem já será mostrada pelo componente de UI via compressionInfo
             return;
           }
           
           // Se chegou aqui, compressão foi bem-sucedida
-          console.log('✅ Compressão bem-sucedida, prosseguindo com upload...');
+          console.log('✅ Compressão bem-sucedida! Tamanho final:', formatFileSize(fileToUpload.size));
         } catch (compressionError) {
           console.error('Erro na compressão:', compressionError);
           const errorMsg = compressionError.message || 'Erro desconhecido';
