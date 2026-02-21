@@ -26,6 +26,7 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
   const [compressing, setCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState(0);
+  const [compressionInfo, setCompressionInfo] = useState(null); // { originalSize, compressedSize, success }
   const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
   const ffmpegRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -65,8 +66,17 @@ export default function Home() {
   // Função para comprimir vídeo
   const compressVideo = async (file) => {
     const maxSize = 50 * 1024 * 1024; // 50MB
-    if (file.size <= maxSize) {
-      return file; // Não precisa comprimir
+    const originalSize = file.size;
+    
+    // Se já está abaixo do limite, não precisa comprimir
+    if (originalSize <= maxSize) {
+      setCompressionInfo({
+        originalSize,
+        compressedSize: originalSize,
+        success: true,
+        needsCompression: false
+      });
+      return file;
     }
 
     if (!ffmpegLoaded || !ffmpegRef.current) {
@@ -75,31 +85,47 @@ export default function Home() {
 
     setCompressing(true);
     setCompressionProgress(0);
+    setCompressionInfo({
+      originalSize,
+      compressedSize: null,
+      success: false,
+      needsCompression: true
+    });
 
     try {
       const ffmpeg = ffmpegRef.current;
       const inputFileName = 'input.' + file.name.split('.').pop();
       const outputFileName = 'output.mp4';
 
+      console.log('Iniciando compressão...');
+      console.log('Tamanho original:', formatFileSize(originalSize));
+
       // Escrever arquivo de entrada
       await ffmpeg.writeFile(inputFileName, await fetchFile(file));
+      console.log('Arquivo carregado no FFmpeg');
 
       // Calcular qualidade baseada no tamanho original
-      const originalSizeMB = file.size / (1024 * 1024);
+      const originalSizeMB = originalSize / (1024 * 1024);
       let crf = 28; // Qualidade padrão (maior = menor arquivo)
       let scale = '1920:1080'; // Resolução padrão
+      let compressionLevel = 'Médio';
 
       // Ajustar qualidade baseado no tamanho
       if (originalSizeMB > 200) {
         crf = 32;
         scale = '1280:720';
+        compressionLevel = 'Alto';
       } else if (originalSizeMB > 100) {
         crf = 30;
         scale = '1280:720';
+        compressionLevel = 'Médio-Alto';
       } else if (originalSizeMB > 50) {
         crf = 28;
         scale = '1920:1080';
+        compressionLevel = 'Médio';
       }
+
+      console.log(`Compressão configurada: CRF=${crf}, Resolução=${scale}, Nível=${compressionLevel}`);
 
       // Executar compressão
       await ffmpeg.exec([
@@ -118,20 +144,41 @@ export default function Home() {
       const data = await ffmpeg.readFile(outputFileName);
       const compressedBlob = new Blob([data], { type: 'video/mp4' });
       const compressedFile = new File([compressedBlob], file.name, { type: 'video/mp4' });
+      const compressedSize = compressedFile.size;
 
       // Limpar arquivos temporários
       await ffmpeg.deleteFile(inputFileName);
       await ffmpeg.deleteFile(outputFileName);
 
+      const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+      const success = compressedSize <= maxSize;
+
+      setCompressionInfo({
+        originalSize,
+        compressedSize,
+        success,
+        needsCompression: true,
+        reduction: parseFloat(reduction),
+        compressionLevel
+      });
+
       setCompressing(false);
       setCompressionProgress(0);
 
-      console.log(`Compressão concluída: ${formatFileSize(file.size)} → ${formatFileSize(compressedFile.size)}`);
+      console.log(`✅ Compressão concluída: ${formatFileSize(originalSize)} → ${formatFileSize(compressedSize)} (${reduction}% de redução)`);
+      console.log(`Status: ${success ? '✅ Dentro do limite' : '⚠️ Ainda acima do limite'}`);
 
       return compressedFile;
     } catch (error) {
       setCompressing(false);
       setCompressionProgress(0);
+      setCompressionInfo({
+        originalSize,
+        compressedSize: null,
+        success: false,
+        needsCompression: true,
+        error: error.message
+      });
       console.error('Erro na compressão:', error);
       throw error;
     }
@@ -142,6 +189,14 @@ export default function Home() {
       setVideoFile(file);
       setJobId(null);
       setStatus(null);
+      setCompressionInfo(null); // Limpar info de compressão anterior
+      
+      // Mostrar aviso se arquivo é grande
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        // Não bloquear, apenas informar que será comprimido
+        console.log('Arquivo grande detectado, será comprimido automaticamente');
+      }
     } else {
       alert('Por favor, selecione um arquivo de vídeo válido (MP4, MOV, AVI, MKV, WEBM)');
     }
@@ -174,7 +229,14 @@ export default function Home() {
       return;
     }
 
+    // Se já tentou comprimir e não deu certo, não permitir upload
+    if (compressionInfo && !compressionInfo.success) {
+      alert('❌ Não é possível fazer upload. O vídeo ainda está acima de 50MB após compressão.\n\nPor favor, tente com um vídeo menor ou comprima manualmente.');
+      return;
+    }
+
     setUploading(true);
+    setCompressionInfo(null); // Limpar info anterior
     let fileToUpload = videoFile;
 
     try {
@@ -182,26 +244,41 @@ export default function Home() {
       const maxSize = 50 * 1024 * 1024; // 50MB
       if (videoFile.size > maxSize) {
         if (!ffmpegLoaded) {
-          alert('FFmpeg ainda está carregando. Aguarde alguns segundos e tente novamente.');
+          alert('⏳ FFmpeg ainda está carregando. Aguarde alguns segundos e tente novamente.');
           setUploading(false);
           return;
         }
 
         try {
+          console.log('Iniciando compressão automática...');
           fileToUpload = await compressVideo(videoFile);
           
-          // Verificar se ainda está acima do limite após compressão
-          if (fileToUpload.size > maxSize) {
-            alert(`⚠️ O vídeo foi comprimido, mas ainda está acima de 50MB.\n\nTamanho original: ${formatFileSize(videoFile.size)}\nTamanho após compressão: ${formatFileSize(fileToUpload.size)}\n\nTente com um vídeo menor ou faça upgrade para plano Pro (100MB).`);
+          // Verificar resultado da compressão usando compressionInfo
+          if (!compressionInfo || !compressionInfo.success || fileToUpload.size > maxSize) {
+            const info = compressionInfo || { originalSize: videoFile.size, compressedSize: fileToUpload.size };
             setUploading(false);
+            // A mensagem já será mostrada pelo componente de UI
             return;
           }
+          
+          // Se chegou aqui, compressão foi bem-sucedida
+          console.log('✅ Compressão bem-sucedida, prosseguindo com upload...');
         } catch (compressionError) {
           console.error('Erro na compressão:', compressionError);
-          alert(`Erro ao comprimir vídeo: ${compressionError.message}\n\nTente comprimir manualmente ou use um vídeo menor.`);
+          const errorMsg = compressionError.message || 'Erro desconhecido';
+          alert(`❌ Erro ao comprimir vídeo\n\n${errorMsg}\n\nTente comprimir manualmente ou use um vídeo menor.`);
           setUploading(false);
+          setCompressionInfo(null);
           return;
         }
+      } else {
+        // Arquivo já está dentro do limite
+        setCompressionInfo({
+          originalSize: videoFile.size,
+          compressedSize: videoFile.size,
+          success: true,
+          needsCompression: false
+        });
       }
 
       // Fazer upload
@@ -374,6 +451,13 @@ export default function Home() {
       {compressing && (
         <div className={styles.compressionSection}>
           <h3>🔄 Comprimindo vídeo automaticamente...</h3>
+          {compressionInfo && (
+            <div style={{ marginBottom: '15px' }}>
+              <p style={{ fontSize: '0.9em', color: '#856404' }}>
+                📊 Tamanho original: <strong>{formatFileSize(compressionInfo.originalSize)}</strong>
+              </p>
+            </div>
+          )}
           <div className={styles.progressBar}>
             <div
               className={styles.progressFill}
@@ -387,15 +471,60 @@ export default function Home() {
         </div>
       )}
 
+      {compressionInfo && !compressing && (
+        <div className={`${styles.compressionSection} ${compressionInfo.success ? styles.success : styles.warning}`}>
+          {compressionInfo.success ? (
+            <>
+              <h3>✅ Compressão Concluída!</h3>
+              <div style={{ marginTop: '15px', textAlign: 'left' }}>
+                <p><strong>📊 Tamanho original:</strong> {formatFileSize(compressionInfo.originalSize)}</p>
+                <p><strong>📦 Tamanho após compressão:</strong> {formatFileSize(compressionInfo.compressedSize)}</p>
+                {compressionInfo.reduction && (
+                  <p><strong>📉 Redução:</strong> {compressionInfo.reduction}%</p>
+                )}
+                {compressionInfo.compressionLevel && (
+                  <p><strong>⚙️ Nível de compressão:</strong> {compressionInfo.compressionLevel}</p>
+                )}
+                <p style={{ marginTop: '10px', color: '#2e7d32', fontWeight: 'bold' }}>
+                  ✅ Pronto para upload! (Dentro do limite de 50MB)
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <h3>⚠️ Compressão Concluída, mas Ainda Acima do Limite</h3>
+              <div style={{ marginTop: '15px', textAlign: 'left' }}>
+                <p><strong>📊 Tamanho original:</strong> {formatFileSize(compressionInfo.originalSize)}</p>
+                <p><strong>📦 Tamanho após compressão:</strong> {formatFileSize(compressionInfo.compressedSize || 0)}</p>
+                {compressionInfo.reduction && (
+                  <p><strong>📉 Redução:</strong> {compressionInfo.reduction}%</p>
+                )}
+                <p style={{ marginTop: '10px', color: '#c62828', fontWeight: 'bold' }}>
+                  ❌ Ainda acima de 50MB. Não será possível fazer upload.
+                </p>
+                <div style={{ marginTop: '15px', padding: '10px', background: '#fff3cd', borderRadius: '5px' }}>
+                  <p style={{ margin: 0, fontSize: '0.9em' }}>
+                    <strong>💡 Opções:</strong><br/>
+                    • Tente com um vídeo menor<br/>
+                    • Faça upgrade para Vercel Pro (100MB)<br/>
+                    • Comprima manualmente antes
+                  </p>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       <div className={styles.actions}>
         <button
           className={styles.processBtn}
           onClick={handleUpload}
-          disabled={!videoFile || uploading || processing || compressing}
+          disabled={!videoFile || uploading || processing || compressing || (compressionInfo && !compressionInfo.success)}
         >
-          {compressing ? '🔄 Comprimindo...' : uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '✂️ Processar Vídeo'}
+          {compressing ? '🔄 Comprimindo...' : uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : compressionInfo && !compressionInfo.success ? '❌ Não é possível processar' : '✂️ Processar Vídeo'}
         </button>
-        {videoFile && videoFile.size > 50 * 1024 * 1024 && !compressing && (
+        {videoFile && videoFile.size > 50 * 1024 * 1024 && !compressing && !compressionInfo && (
           <p style={{ textAlign: 'center', marginTop: '10px', color: '#856404', fontSize: '0.9em' }}>
             ⚠️ Vídeo será comprimido automaticamente antes do upload
           </p>

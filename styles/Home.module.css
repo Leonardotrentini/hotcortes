@@ -249,6 +249,26 @@
   box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
 }
 
+.compressionSection.success {
+  background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+  border-color: #4caf50;
+  box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
+}
+
+.compressionSection.success h3 {
+  color: #2e7d32;
+}
+
+.compressionSection.warning {
+  background: linear-gradient(135deg, #ffccbc 0%, #ffab91 100%);
+  border-color: #ff5722;
+  box-shadow: 0 5px 15px rgba(255, 87, 34, 0.3);
+}
+
+.compressionSection.warning h3 {
+  color: #c62828;
+}
+
 .compressionSection h3 {
   color: #856404;
   margin-bottom: 20px;
@@ -264,6 +284,11 @@
   font-weight: 600;
   font-size: 1.1em;
   margin-top: 10px;
+}
+
+.compressionSection p {
+  margin: 8px 0;
+  line-height: 1.6;
 }
 
 @media (max-width: 768px) {
