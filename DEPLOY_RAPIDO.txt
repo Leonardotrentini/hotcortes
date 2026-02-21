@@ -1,0 +1,56 @@
+═══════════════════════════════════════════════════════════
+  🚀 DEPLOY RÁPIDO NA VERCEL - 3 PASSOS
+═══════════════════════════════════════════════════════════
+
+1️⃣ ENVIAR PARA GITHUB
+   ─────────────────────────────────────────────────────
+   cd "C:\Users\Leonardo trentini\Desktop\ferramentahot"
+   git init
+   git add .
+   git commit -m "Deploy CortesHot"
+   git branch -M main
+   git remote add origin https://github.com/SEU_USUARIO/corteshot.git
+   git push -u origin main
+
+   ⚠️ Crie o repositório no GitHub primeiro se não existir
+   ⚠️ Substitua SEU_USUARIO pelo seu usuário do GitHub
+
+
+2️⃣ FAZER DEPLOY NA VERCEL
+   ─────────────────────────────────────────────────────
+   1. Acesse: https://vercel.com
+   2. Faça login com GitHub
+   3. Clique em "Add New Project"
+   4. Selecione o repositório "corteshot"
+   5. Clique em "Deploy"
+   6. Aguarde 2-5 minutos
+   7. Pronto! 🎉
+
+
+3️⃣ TESTAR
+   ─────────────────────────────────────────────────────
+   Acesse a URL que a Vercel forneceu
+   Exemplo: https://corteshot.vercel.app
+
+
+═══════════════════════════════════════════════════════════
+  ⚠️ IMPORTANTE
+═══════════════════════════════════════════════════════════
+
+✅ Tudo já está configurado (vercel.json, package.json)
+✅ Não precisa configurar variáveis de ambiente
+✅ FFmpeg será instalado automaticamente
+✅ Timeout de 5 minutos já configurado
+
+
+═══════════════════════════════════════════════════════════
+  🔄 ATUALIZAR DEPLOY (quando fizer mudanças)
+═══════════════════════════════════════════════════════════
+
+git add .
+git commit -m "Atualização"
+git push
+
+A Vercel faz deploy automático! 🚀
+
+═══════════════════════════════════════════════════════════
