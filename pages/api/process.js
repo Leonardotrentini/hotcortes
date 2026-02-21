@@ -61,15 +61,38 @@ function getVideoDuration(videoPath) {
 
 function createClip(videoPath, outputPath, startTime, duration) {
   return new Promise((resolve, reject) => {
+    // Usar preset ultrafast e reduzir qualidade para economizar memória
+    // Threads limitado para não sobrecarregar
     ffmpeg(videoPath)
       .setStartTime(startTime)
       .setDuration(duration)
       .output(outputPath)
       .videoCodec('libx264')
       .audioCodec('aac')
-      .addOptions(['-preset fast', '-crf 23', '-movflags +faststart'])
-      .on('end', () => resolve())
-      .on('error', (err) => reject(err))
+      .addOptions([
+        '-preset ultrafast', // Mais rápido, menos memória
+        '-crf 28', // Qualidade um pouco menor para economizar
+        '-movflags +faststart',
+        '-threads 1', // Limitar threads para economizar memória
+        '-tune fastdecode' // Otimizar para decodificação rápida
+      ])
+      .on('start', (commandLine) => {
+        console.log('FFmpeg command:', commandLine);
+      })
+      .on('progress', (progress) => {
+        // Log de progresso pode ser útil para debug
+        if (progress.percent) {
+          console.log(`Progresso: ${Math.round(progress.percent)}%`);
+        }
+      })
+      .on('end', () => {
+        console.log('Corte finalizado:', outputPath);
+        resolve();
+      })
+      .on('error', (err) => {
+        console.error('Erro FFmpeg:', err);
+        reject(err);
+      })
       .run();
   });
 }
@@ -162,27 +185,45 @@ export default async function handler(req, res) {
     const numberOfClips = Math.ceil(videoDuration / durationSeconds);
     console.log('Número de cortes a criar:', numberOfClips);
 
-    // Criar cortes em paralelo
-    const clipPromises = [];
-    for (let i = 0; i < numberOfClips; i++) {
-      const startTime = i * durationSeconds;
-      const clipDuration = Math.min(durationSeconds, videoDuration - startTime);
-      const clipPath = path.join(outputDir, `corte_${String(i + 1).padStart(3, '0')}.mp4`);
+    // Processar cortes sequencialmente para economizar memória (plano gratuito Render tem 512MB)
+    // Processar em lotes pequenos para evitar exceder limite de memória
+    const batchSize = 2; // Processar 2 cortes por vez (reduz uso de memória)
+    
+    console.log('Iniciando criação de cortes em lotes (economia de memória)...');
+    
+    for (let batchStart = 0; batchStart < numberOfClips; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize, numberOfClips);
+      const batchPromises = [];
       
-      clipPromises.push(
-        createClip(videoPath, clipPath, startTime, clipDuration)
-          .then(() => {
-            console.log(`✅ Corte ${i + 1}/${numberOfClips} criado: ${clipPath}`);
-          })
-          .catch(err => {
-            console.error(`❌ Erro ao criar corte ${i + 1}:`, err);
-            throw new Error(`Erro ao criar corte ${i + 1}/${numberOfClips}: ${err.message}`);
-          })
-      );
+      console.log(`Processando lote ${Math.floor(batchStart / batchSize) + 1}: cortes ${batchStart + 1} a ${batchEnd}`);
+      
+      for (let i = batchStart; i < batchEnd; i++) {
+        const startTime = i * durationSeconds;
+        const clipDuration = Math.min(durationSeconds, videoDuration - startTime);
+        const clipPath = path.join(outputDir, `corte_${String(i + 1).padStart(3, '0')}.mp4`);
+        
+        batchPromises.push(
+          createClip(videoPath, clipPath, startTime, clipDuration)
+            .then(() => {
+              console.log(`✅ Corte ${i + 1}/${numberOfClips} criado`);
+            })
+            .catch(err => {
+              console.error(`❌ Erro ao criar corte ${i + 1}:`, err);
+              throw new Error(`Erro ao criar corte ${i + 1}/${numberOfClips}: ${err.message}`);
+            })
+        );
+      }
+      
+      // Aguardar lote atual terminar antes de processar próximo
+      await Promise.all(batchPromises);
+      console.log(`✅ Lote ${Math.floor(batchStart / batchSize) + 1} concluído`);
+      
+      // Pequena pausa entre lotes para liberar memória
+      if (batchEnd < numberOfClips) {
+        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 segundo de pausa
+      }
     }
-
-    console.log('Iniciando criação de cortes em paralelo...');
-    await Promise.all(clipPromises);
+    
     console.log('✅ Todos os cortes criados com sucesso!');
 
     // Criar ZIP
