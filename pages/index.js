@@ -150,7 +150,7 @@ export default function Home() {
       await ffmpeg.deleteFile(inputFileName);
       await ffmpeg.deleteFile(outputFileName);
 
-          const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+      const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
       const success = compressedSize <= maxSize;
 
       setCompressionInfo({
