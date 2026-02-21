@@ -82,7 +82,20 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Erro no upload:', error);
-      alert('Erro ao fazer upload do vídeo: ' + (error.response?.data?.error || error.message));
+      let errorMessage = 'Erro desconhecido';
+      
+      if (error.response) {
+        // Erro da API
+        errorMessage = error.response.data?.error || error.response.data?.message || JSON.stringify(error.response.data);
+      } else if (error.request) {
+        // Erro de rede
+        errorMessage = 'Erro de conexão. Verifique sua internet.';
+      } else {
+        // Outro erro
+        errorMessage = error.message || 'Erro ao fazer upload';
+      }
+      
+      alert('Erro ao fazer upload do vídeo: ' + errorMessage);
       setUploading(false);
     }
   };

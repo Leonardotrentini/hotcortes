@@ -26,24 +26,42 @@ export default async function handler(req, res) {
     const form = formidable({
       uploadDir: uploadsDir,
       keepExtensions: true,
-      maxFileSize: 500 * 1024 * 1024, // 500MB
+      maxFileSize: 50 * 1024 * 1024, // 50MB (limite Vercel Hobby)
+      multiples: false,
     });
 
-    const [fields, files] = await form.parse(req);
+    let fields, files;
+    try {
+      [fields, files] = await form.parse(req);
+    } catch (parseError) {
+      console.error('Erro ao fazer parse do formulário:', parseError);
+      return res.status(400).json({ 
+        error: 'Erro ao processar arquivo. Verifique o tamanho (máx 50MB) e formato do vídeo.',
+        details: parseError.message 
+      });
+    }
     
     const videoFile = Array.isArray(files.video) ? files.video[0] : files.video;
     
     if (!videoFile) {
-      return res.status(400).json({ error: 'Nenhum arquivo de vídeo enviado' });
+      return res.status(400).json({ error: 'Nenhum arquivo de vídeo enviado. Certifique-se de selecionar um arquivo.' });
     }
 
     // Validar tipo de arquivo
     const allowedTypes = ['video/mp4', 'video/quicktime', 'video/x-msvideo', 'video/x-matroska', 'video/webm'];
-    if (!allowedTypes.includes(videoFile.mimetype)) {
+    const fileMimetype = videoFile.mimetype || '';
+    
+    if (!fileMimetype || !allowedTypes.includes(fileMimetype)) {
       if (fs.existsSync(videoFile.filepath)) {
-        fs.unlinkSync(videoFile.filepath);
+        try {
+          fs.unlinkSync(videoFile.filepath);
+        } catch (e) {
+          console.error('Erro ao remover arquivo:', e);
+        }
       }
-      return res.status(400).json({ error: 'Tipo de arquivo não suportado' });
+      return res.status(400).json({ 
+        error: `Tipo de arquivo não suportado. Tipo recebido: ${fileMimetype || 'desconhecido'}. Formatos aceitos: MP4, MOV, AVI, MKV, WEBM` 
+      });
     }
 
     // Gerar nome único
@@ -86,6 +104,15 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Erro no upload:', error);
-    res.status(500).json({ error: error.message || 'Erro ao processar upload' });
+    const errorMessage = error.message || 'Erro ao processar upload';
+    console.error('Detalhes do erro:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+    res.status(500).json({ 
+      error: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
