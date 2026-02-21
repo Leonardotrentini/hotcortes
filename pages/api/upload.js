@@ -28,16 +28,35 @@ export default async function handler(req, res) {
       keepExtensions: true,
       maxFileSize: 50 * 1024 * 1024, // 50MB (limite Vercel Hobby)
       multiples: false,
+      filter: ({ name, originalFilename, mimetype }) => {
+        // Filtrar apenas arquivos de vídeo
+        return mimetype && mimetype.startsWith('video/');
+      }
     });
+
+    // Garantir que req tenha as propriedades necessárias
+    if (!req.headers) {
+      return res.status(400).json({ error: 'Requisição inválida: headers não encontrados' });
+    }
 
     let fields, files;
     try {
+      // Usar form.parse com req diretamente
       [fields, files] = await form.parse(req);
     } catch (parseError) {
       console.error('Erro ao fazer parse do formulário:', parseError);
+      const errorMsg = parseError.message || 'Erro desconhecido ao processar arquivo';
+      
+      // Verificar se é erro de tamanho
+      if (errorMsg.includes('maxFileSize') || errorMsg.includes('too large')) {
+        return res.status(400).json({ 
+          error: 'Arquivo muito grande. Tamanho máximo: 50MB. Tente comprimir o vídeo antes de enviar.'
+        });
+      }
+      
       return res.status(400).json({ 
         error: 'Erro ao processar arquivo. Verifique o tamanho (máx 50MB) e formato do vídeo.',
-        details: parseError.message 
+        details: errorMsg
       });
     }
     
