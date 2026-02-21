@@ -291,8 +291,15 @@ export default async function handler(req, res) {
     const numberOfClips = Math.ceil(videoDuration / durationSeconds);
     console.log('Número de cortes a criar:', numberOfClips);
 
-    // Processar cortes sequencialmente para economizar memória (plano gratuito Render tem 512MB)
-    // Processar em lotes pequenos para evitar exceder limite de memória
+    // Atualizar metadados com informações do processamento
+    metadata.numberOfClips = numberOfClips;
+    metadata.expectedDuration = durationSeconds;
+    metadata.status = 'processing';
+    metadata.currentStep = 'Analisando vídeo...';
+    metadata.progress = 5;
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+
+    // Processar cortes sequencialmente para economizar memória
     const batchSize = 2; // Processar 2 cortes por vez (reduz uso de memória)
     
     console.log('Iniciando criação de cortes em lotes (economia de memória)...');
@@ -300,6 +307,13 @@ export default async function handler(req, res) {
     for (let batchStart = 0; batchStart < numberOfClips; batchStart += batchSize) {
       const batchEnd = Math.min(batchStart + batchSize, numberOfClips);
       const batchPromises = [];
+      
+      // Atualizar progresso
+      const progressPercent = Math.min(90, 10 + Math.floor((batchStart / numberOfClips) * 80));
+      metadata.currentStep = `Criando cortes ${batchStart + 1}-${batchEnd} de ${numberOfClips}...`;
+      metadata.progress = progressPercent;
+      metadata.clipsCreated = batchStart;
+      fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
       
       console.log(`Processando lote ${Math.floor(batchStart / batchSize) + 1}: cortes ${batchStart + 1} a ${batchEnd}`);
       
@@ -312,6 +326,11 @@ export default async function handler(req, res) {
           createClip(videoPath, clipPath, startTime, clipDuration)
             .then(() => {
               console.log(`✅ Corte ${i + 1}/${numberOfClips} criado`);
+              // Atualizar progresso após cada corte
+              metadata.clipsCreated = i + 1;
+              const clipProgress = Math.min(90, 10 + Math.floor(((i + 1) / numberOfClips) * 80));
+              metadata.progress = clipProgress;
+              fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
             })
             .catch(err => {
               console.error(`❌ Erro ao criar corte ${i + 1}:`, err);
@@ -331,6 +350,11 @@ export default async function handler(req, res) {
     }
     
     console.log('✅ Todos os cortes criados com sucesso!');
+    
+    // Atualizar progresso para criação do ZIP
+    metadata.currentStep = 'Criando arquivo ZIP...';
+    metadata.progress = 90;
+    fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
 
     // Criar ZIP
     const zipPath = path.join(outputDir, `cortes_${jobId}.zip`);

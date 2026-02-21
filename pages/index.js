@@ -270,7 +270,18 @@ export default function Home() {
             />
           </div>
           <p className={styles.progressText}>
-            {status.status === 'completed' ? '✅ Concluído!' : `Processando... ${status.progress}%`}
+            {status.status === 'completed' ? (
+              '✅ Concluído!'
+            ) : (
+              <>
+                {status.currentStep || 'Processando...'} {status.progress}%
+                {status.metadata && (
+                  <span style={{ display: 'block', fontSize: '0.85em', marginTop: '5px', color: '#666' }}>
+                    {status.metadata.clipsCreated || 0} de {status.metadata.numberOfClips || 0} cortes criados
+                  </span>
+                )}
+              </>
+            )}
           </p>
 
           {status.status === 'completed' && (

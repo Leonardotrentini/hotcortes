@@ -41,16 +41,31 @@ export default function handler(req, res) {
       });
     }
 
-    const progress = isComplete ? 100 : Math.min(90, Math.floor((clips.length / (metadata.numberOfClips || 1)) * 90));
+    // Usar progresso dos metadados se disponível, senão calcular
+    let progress = metadata.progress || 0;
+    let currentStep = metadata.currentStep || 'Processando...';
+    
+    if (!isComplete && metadata.numberOfClips) {
+      // Se não temos progresso nos metadados, calcular baseado nos clips
+      const calculatedProgress = Math.min(90, Math.floor((clips.length / metadata.numberOfClips) * 90));
+      if (calculatedProgress > progress) {
+        progress = calculatedProgress;
+      }
+    } else if (isComplete) {
+      progress = 100;
+      currentStep = 'Processamento concluído!';
+    }
 
     res.status(200).json({
       status: isComplete ? 'completed' : 'processing',
       progress,
+      currentStep,
       clips,
       downloadUrl: isComplete ? `/api/download?jobId=${jobId}` : null,
       metadata: {
         expectedDuration: metadata.expectedDuration,
         numberOfClips: metadata.numberOfClips,
+        clipsCreated: metadata.clipsCreated || clips.length,
       },
     });
   } catch (error) {
