@@ -9,6 +9,17 @@ let ffmpegPath = null;
 if (ffmpegStatic) {
   ffmpegPath = ffmpegStatic;
   ffmpeg.setFfmpegPath(ffmpegStatic);
+  
+  // Configurar ffprobe (geralmente está no mesmo diretório do ffmpeg)
+  const ffprobePath = ffmpegStatic.replace('ffmpeg', 'ffprobe');
+  if (fs.existsSync(ffprobePath)) {
+    ffmpeg.setFfprobePath(ffprobePath);
+    console.log('FFprobe configurado:', ffprobePath);
+  } else {
+    // Tentar caminho alternativo (ffmpeg-static pode incluir ffprobe no mesmo binário)
+    console.log('FFprobe não encontrado em caminho separado, usando ffmpeg para análise');
+  }
+  
   console.log('FFmpeg configurado:', ffmpegStatic);
   console.log('FFmpeg existe:', fs.existsSync(ffmpegStatic));
 } else {
@@ -49,12 +60,53 @@ function parseDurationToSeconds(duration) {
 
 function getVideoDuration(videoPath) {
   return new Promise((resolve, reject) => {
-    ffmpeg.ffprobe(videoPath, (err, metadata) => {
-      if (err) {
-        reject(err);
+    // Verificar se o arquivo existe
+    if (!fs.existsSync(videoPath)) {
+      console.error('Vídeo não encontrado em:', videoPath);
+      reject(new Error(`Arquivo de vídeo não encontrado: ${videoPath}`));
+      return;
+    }
+
+    // Verificar tamanho do arquivo
+    try {
+      const stats = fs.statSync(videoPath);
+      console.log('Tamanho do arquivo de vídeo:', stats.size, 'bytes');
+      if (stats.size === 0) {
+        reject(new Error('Arquivo de vídeo está vazio'));
         return;
       }
-      resolve(metadata.format.duration);
+    } catch (statError) {
+      console.error('Erro ao verificar estatísticas do arquivo:', statError);
+      reject(new Error('Não foi possível acessar o arquivo de vídeo'));
+      return;
+    }
+
+    console.log('Iniciando análise do vídeo com ffprobe:', videoPath);
+    
+    ffmpeg.ffprobe(videoPath, (err, metadata) => {
+      if (err) {
+        console.error('Erro no ffprobe:', err);
+        console.error('Mensagem de erro:', err.message);
+        console.error('Stack:', err.stack);
+        reject(new Error(`Erro ao analisar vídeo: ${err.message || 'Erro desconhecido'}`));
+        return;
+      }
+
+      if (!metadata || !metadata.format) {
+        console.error('Metadados inválidos retornados pelo ffprobe');
+        reject(new Error('Não foi possível obter informações do vídeo'));
+        return;
+      }
+
+      const duration = metadata.format.duration;
+      if (!duration || isNaN(duration)) {
+        console.error('Duração inválida:', duration);
+        reject(new Error('Não foi possível determinar a duração do vídeo'));
+        return;
+      }
+
+      console.log('Duração do vídeo obtida:', duration, 'segundos');
+      resolve(duration);
     });
   });
 }
