@@ -124,7 +124,7 @@ export default async function handler(req, res) {
 
   // Logs de diagnóstico
   console.log('=== Iniciando processamento ===');
-  console.log('VERCEL env:', process.env.VERCEL);
+  console.log('RAILWAY env:', process.env.RAILWAY_ENVIRONMENT);
   console.log('FFmpeg path:', ffmpegPath);
   console.log('FFmpeg exists:', ffmpegPath ? fs.existsSync(ffmpegPath) : 'N/A');
 
@@ -138,8 +138,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'jobId e duration são obrigatórios' });
     }
 
-    // Usar /tmp no Render/Vercel ou diretório local
-    const tmpDir = (process.env.VERCEL || process.env.RENDER) ? '/tmp' : path.join(process.cwd(), 'uploads');
+    // Railway usa diretório normal (não é serverless)
+    const tmpDir = path.join(process.cwd(), 'uploads');
     const outputDir = path.join(tmpDir, 'outputs', jobId);
     const metadataPath = path.join(outputDir, 'metadata.json');
 

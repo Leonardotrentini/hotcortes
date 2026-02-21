@@ -13,8 +13,8 @@ export default function handler(req, res) {
       return res.status(400).json({ error: 'jobId é obrigatório' });
     }
 
-    // Usar /tmp no Render/Vercel ou diretório local
-    const tmpDir = (process.env.VERCEL || process.env.RENDER) ? '/tmp' : path.join(process.cwd(), 'uploads');
+    // Railway usa diretório normal (não é serverless)
+    const tmpDir = path.join(process.cwd(), 'uploads');
     const outputDir = path.join(tmpDir, 'outputs', jobId);
     const metadataPath = path.join(outputDir, 'metadata.json');
 

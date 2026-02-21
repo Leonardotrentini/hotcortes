@@ -14,21 +14,21 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
-  // Verificar Content-Length antes de processar (limite Vercel: 50MB)
+  // Verificar Content-Length antes de processar (limite Railway: 500MB)
   const contentLength = req.headers['content-length'];
   if (contentLength) {
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 500 * 1024 * 1024; // 500MB (Railway permite mais)
     const fileSize = parseInt(contentLength, 10);
     if (fileSize > maxSize) {
       return res.status(413).json({ 
-        error: 'Arquivo muito grande. Tamanho máximo: 50MB. Tamanho do arquivo: ' + Math.round(fileSize / 1024 / 1024) + 'MB. Por favor, comprima o vídeo antes de enviar.'
+        error: 'Arquivo muito grande. Tamanho máximo: 500MB. Tamanho do arquivo: ' + Math.round(fileSize / 1024 / 1024) + 'MB. Por favor, comprima o vídeo antes de enviar.'
       });
     }
   }
 
   try {
-    // Usar /tmp no Render/Vercel ou diretório local
-    const tmpDir = (process.env.VERCEL || process.env.RENDER) ? '/tmp' : path.join(process.cwd(), 'uploads');
+    // Railway usa diretório normal (não é serverless)
+    const tmpDir = path.join(process.cwd(), 'uploads');
     const uploadsDir = path.join(tmpDir, 'uploads');
     
     if (!fs.existsSync(uploadsDir)) {
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
     const form = formidable({
       uploadDir: uploadsDir,
       keepExtensions: true,
-      maxFileSize: 50 * 1024 * 1024, // 50MB (limite Vercel Hobby)
+      maxFileSize: 500 * 1024 * 1024, // 500MB (Railway permite mais)
       multiples: false,
       filter: ({ name, originalFilename, mimetype }) => {
         // Filtrar apenas arquivos de vídeo
@@ -62,12 +62,12 @@ export default async function handler(req, res) {
       // Verificar se é erro de tamanho
       if (errorMsg.includes('maxFileSize') || errorMsg.includes('too large')) {
         return res.status(400).json({ 
-          error: 'Arquivo muito grande. Tamanho máximo: 50MB. Tente comprimir o vídeo antes de enviar.'
+          error: 'Arquivo muito grande. Tamanho máximo: 500MB. Tente comprimir o vídeo antes de enviar.'
         });
       }
       
       return res.status(400).json({ 
-        error: 'Erro ao processar arquivo. Verifique o tamanho (máx 50MB) e formato do vídeo.',
+        error: 'Erro ao processar arquivo. Verifique o tamanho (máx 500MB) e formato do vídeo.',
         details: errorMsg
       });
     }

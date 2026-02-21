@@ -65,7 +65,7 @@ export default function Home() {
 
   // Função para comprimir vídeo
   const compressVideo = async (file) => {
-    const maxSize = 50 * 1024 * 1024; // 50MB
+    const maxSize = 500 * 1024 * 1024; // 500MB (Railway permite mais, mas comprimir se muito grande)
     const originalSize = file.size;
     
     // Se já está abaixo do limite, não precisa comprimir
@@ -231,7 +231,7 @@ export default function Home() {
 
     // Se já tentou comprimir e não deu certo, não permitir upload
     if (compressionInfo && !compressionInfo.success) {
-      alert('❌ Não é possível fazer upload. O vídeo ainda está acima de 50MB após compressão.\n\nPor favor, tente com um vídeo menor ou comprima manualmente.');
+      alert('❌ Não é possível fazer upload. O vídeo ainda está acima de 500MB após compressão.\n\nPor favor, tente com um vídeo menor ou comprima manualmente.');
       return;
     }
 
@@ -240,8 +240,8 @@ export default function Home() {
     let fileToUpload = videoFile;
 
     try {
-      // Comprimir automaticamente se necessário
-      const maxSize = 50 * 1024 * 1024; // 50MB
+      // Comprimir automaticamente se necessário (Railway permite até 500MB, mas comprimir se muito grande)
+      const maxSize = 500 * 1024 * 1024; // 500MB
       if (videoFile.size > maxSize) {
         if (!ffmpegLoaded) {
           alert('⏳ FFmpeg ainda está carregando. Aguarde alguns segundos e tente novamente.');
@@ -321,7 +321,7 @@ export default function Home() {
         const data = error.response.data;
         
         if (status === 413) {
-          errorMessage = '❌ Arquivo muito grande!\n\nO arquivo excede o limite de 50MB.\nPor favor, comprima o vídeo antes de enviar.';
+          errorMessage = '❌ Arquivo muito grande!\n\nO arquivo excede o limite de 500MB.\nPor favor, comprima o vídeo antes de enviar.';
         } else if (status === 400) {
           errorMessage = data?.error || 'Arquivo inválido. Verifique o formato e tamanho.';
         } else if (status === 500) {
@@ -499,7 +499,7 @@ export default function Home() {
                   <p><strong>⚙️ Nível de compressão:</strong> {compressionInfo.compressionLevel}</p>
                 )}
                 <p style={{ marginTop: '10px', color: '#2e7d32', fontWeight: 'bold' }}>
-                  ✅ Pronto para upload! (Dentro do limite de 50MB)
+                  ✅ Pronto para upload! (Dentro do limite de 500MB)
                 </p>
               </div>
             </>
@@ -513,14 +513,14 @@ export default function Home() {
                   <p><strong>📉 Redução:</strong> {compressionInfo.reduction}%</p>
                 )}
                 <p style={{ marginTop: '10px', color: '#c62828', fontWeight: 'bold' }}>
-                  ❌ Ainda acima de 50MB. Não será possível fazer upload.
+                  ❌ Ainda acima de 500MB. Não será possível fazer upload.
                 </p>
                 <div style={{ marginTop: '15px', padding: '10px', background: '#fff3cd', borderRadius: '5px' }}>
                   <p style={{ margin: 0, fontSize: '0.9em' }}>
                     <strong>💡 Opções:</strong><br/>
                     • Tente com um vídeo menor<br/>
-                    • Faça upgrade para Vercel Pro (100MB)<br/>
-                    • Comprima manualmente antes
+                    • Comprima manualmente antes<br/>
+                    • Use um vídeo com resolução menor
                   </p>
                 </div>
               </div>

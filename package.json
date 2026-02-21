@@ -1,12 +1,12 @@
 {
   "name": "corteshot",
   "version": "1.0.0",
-  "description": "Ferramenta de corte de vídeos - Deploy Render",
+  "description": "Ferramenta de corte de vídeos - Deploy Railway",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
-    "postinstall": "echo 'FFmpeg será instalado automaticamente pelo Render'"
+    "postinstall": "echo 'FFmpeg será instalado automaticamente pelo Railway'"
   },
   "dependencies": {
     "next": "^14.0.0",

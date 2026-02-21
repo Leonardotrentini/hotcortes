@@ -12,10 +12,9 @@ export default function handler(req, res) {
     const info = {
       ffmpegStatic: ffmpegStatic || 'Não encontrado',
       ffmpegExists: ffmpegStatic ? fs.existsSync(ffmpegStatic) : false,
-      vercel: !!process.env.VERCEL,
-      render: !!process.env.RENDER,
+      railway: !!process.env.RAILWAY_ENVIRONMENT,
       nodeEnv: process.env.NODE_ENV,
-      tmpDir: (process.env.VERCEL || process.env.RENDER) ? '/tmp' : path.join(process.cwd(), 'uploads'),
+      tmpDir: path.join(process.cwd(), 'uploads'),
       canWriteTmp: false,
       ffmpegVersion: null,
     };
