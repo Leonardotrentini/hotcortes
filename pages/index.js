@@ -268,13 +268,15 @@ export default function Home() {
             ))}
           </div>
 
-          <button
-            className={styles.processBtn}
-            onClick={handleUpload}
-            disabled={uploading || processing}
-          >
-            {uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '🚀 Processar Vídeo'}
-          </button>
+          <div style={{ textAlign: 'center', marginTop: '30px' }}>
+            <button
+              className={styles.processBtn}
+              onClick={handleUpload}
+              disabled={uploading || processing}
+            >
+              {uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '🚀 Processar Vídeo'}
+            </button>
+          </div>
         </div>
       )}
 
