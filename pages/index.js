@@ -153,20 +153,14 @@ export default function Home() {
           const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
       const success = compressedSize <= maxSize;
 
-      // Atualizar compressionInfo ANTES de retornar
-      const info = {
+      setCompressionInfo({
         originalSize,
         compressedSize,
         success,
         needsCompression: true,
         reduction: parseFloat(reduction),
         compressionLevel
-      };
-      
-      setCompressionInfo(info);
-      
-      // Aguardar um pouco para garantir que o state foi atualizado
-      await new Promise(resolve => setTimeout(resolve, 50));
+      });
 
       setCompressing(false);
       setCompressionProgress(0);
