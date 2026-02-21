@@ -91,6 +91,18 @@ export default function Home() {
       if (response.data.jobId) {
         setJobId(response.data.jobId);
         setUploading(false);
+        
+        // Iniciar processamento após upload (assíncrono)
+        // Não aguardar resposta, pois o processamento pode demorar
+        axios.post('/api/process', {
+          jobId: response.data.jobId,
+          duration: selectedDuration
+        }).catch((processError) => {
+          console.error('Erro ao iniciar processamento:', processError);
+          // Não mostrar alerta aqui, pois o polling vai detectar o erro
+        });
+        
+        // Iniciar polling imediatamente
         startProcessing(response.data.jobId);
       }
     } catch (error) {
@@ -113,25 +125,46 @@ export default function Home() {
 
     let attempts = 0;
     const maxAttempts = 300; // 10 minutos (300 * 2s)
+    let lastError = null;
 
     const poll = setInterval(async () => {
       attempts++;
       try {
         const response = await axios.get(`/api/status?jobId=${id}`);
         setStatus(response.data);
+        lastError = null; // Resetar erro se conseguir obter status
 
         if (response.data.status === 'completed' || attempts >= maxAttempts) {
           clearInterval(poll);
           setProcessing(false);
-          if (attempts >= maxAttempts) {
-            alert('Tempo limite excedido. Verifique o status manualmente.');
+          if (attempts >= maxAttempts && response.data.status !== 'completed') {
+            alert('⏰ Tempo limite excedido. O processamento pode estar demorando mais que o esperado.');
           }
         }
       } catch (error) {
         console.error('Erro ao verificar status:', error);
+        lastError = error;
+        
+        // Se for erro 404, o job pode não ter sido criado ainda
+        if (error.response?.status === 404 && attempts < 10) {
+          // Aguardar mais um pouco antes de dar erro
+          return;
+        }
+        
+        // Se for erro 500 ou outro erro após várias tentativas, mostrar mensagem
+        if (attempts > 5 && error.response?.status >= 500) {
+          clearInterval(poll);
+          setProcessing(false);
+          alert('❌ Erro no servidor ao processar vídeo. Tente novamente ou verifique os logs.');
+          return;
+        }
+        
         if (attempts >= maxAttempts) {
           clearInterval(poll);
           setProcessing(false);
+          if (lastError) {
+            alert('❌ Erro ao verificar status do processamento: ' + (lastError.response?.data?.error || lastError.message));
+          }
         }
       }
     }, 2000); // Poll a cada 2 segundos
