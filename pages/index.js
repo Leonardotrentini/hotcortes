@@ -150,17 +150,23 @@ export default function Home() {
       await ffmpeg.deleteFile(inputFileName);
       await ffmpeg.deleteFile(outputFileName);
 
-      const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
+          const reduction = ((originalSize - compressedSize) / originalSize * 100).toFixed(1);
       const success = compressedSize <= maxSize;
 
-      setCompressionInfo({
+      // Atualizar compressionInfo ANTES de retornar
+      const info = {
         originalSize,
         compressedSize,
         success,
         needsCompression: true,
         reduction: parseFloat(reduction),
         compressionLevel
-      });
+      };
+      
+      setCompressionInfo(info);
+      
+      // Aguardar um pouco para garantir que o state foi atualizado
+      await new Promise(resolve => setTimeout(resolve, 50));
 
       setCompressing(false);
       setCompressionProgress(0);
@@ -255,10 +261,23 @@ export default function Home() {
           
           // Verificar resultado da compressão baseado no tamanho do arquivo
           if (fileToUpload.size > maxSize) {
-            console.log('Compressão não foi suficiente. Tamanho:', fileToUpload.size, 'MB');
+            console.log('⚠️ Compressão não foi suficiente. Tamanho:', formatFileSize(fileToUpload.size));
+            // Aguardar para compressionInfo ser atualizado
+            await new Promise(resolve => setTimeout(resolve, 200));
             setUploading(false);
             // A mensagem já será mostrada pelo componente de UI via compressionInfo
             return;
+          }
+          
+          // Se chegou aqui e compressionInfo ainda não mostra sucesso, atualizar
+          if (!compressionInfo || !compressionInfo.success) {
+            setCompressionInfo({
+              originalSize: videoFile.size,
+              compressedSize: fileToUpload.size,
+              success: true,
+              needsCompression: true,
+              reduction: ((videoFile.size - fileToUpload.size) / videoFile.size * 100).toFixed(1)
+            });
           }
           
           // Se chegou aqui, compressão foi bem-sucedida
