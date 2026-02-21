@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import ffmpegStatic from 'ffmpeg-static';
+import ffprobeStatic from 'ffprobe-static';
 import archiver from 'archiver';
 
 // Configurar FFmpeg com logs de diagnóstico
@@ -10,20 +11,24 @@ if (ffmpegStatic) {
   ffmpegPath = ffmpegStatic;
   ffmpeg.setFfmpegPath(ffmpegStatic);
   
-  // Configurar ffprobe (geralmente está no mesmo diretório do ffmpeg)
-  const ffprobePath = ffmpegStatic.replace('ffmpeg', 'ffprobe');
-  if (fs.existsSync(ffprobePath)) {
-    ffmpeg.setFfprobePath(ffprobePath);
-    console.log('FFprobe configurado:', ffprobePath);
-  } else {
-    // Tentar caminho alternativo (ffmpeg-static pode incluir ffprobe no mesmo binário)
-    console.log('FFprobe não encontrado em caminho separado, usando ffmpeg para análise');
-  }
-  
   console.log('FFmpeg configurado:', ffmpegStatic);
   console.log('FFmpeg existe:', fs.existsSync(ffmpegStatic));
 } else {
   console.error('FFmpeg-static não encontrado!');
+}
+
+// Configurar FFprobe separadamente
+if (ffprobeStatic) {
+  const ffprobePath = ffprobeStatic;
+  if (fs.existsSync(ffprobePath)) {
+    ffmpeg.setFfprobePath(ffprobePath);
+    console.log('FFprobe configurado:', ffprobePath);
+    console.log('FFprobe existe:', fs.existsSync(ffprobePath));
+  } else {
+    console.warn('FFprobe não encontrado no caminho:', ffprobePath);
+  }
+} else {
+  console.warn('ffprobe-static não encontrado, tentando usar ffmpeg para análise');
 }
 
 // Verificar se FFmpeg está acessível
