@@ -33,6 +33,10 @@ yarn-error.log*
 uploads/
 /tmp
 
+# Telegram Bots (não commitar tokens)
+telegram_bots/
+telegram_bots/media/
+
 # IDE
 .vscode/
 .idea/

@@ -291,6 +291,527 @@
   line-height: 1.6;
 }
 
+/* ===== ESTILOS TELEGRAM ===== */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 10px;
+}
+
+.tab {
+  padding: 12px 24px;
+  border: none;
+  background: transparent;
+  color: #666;
+  font-size: 1.1em;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s;
+}
+
+.tab:hover {
+  color: #667eea;
+  background: #f8f9ff;
+  border-radius: 8px 8px 0 0;
+}
+
+.tab.activeTab {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  font-weight: 600;
+}
+
+.telegramSection {
+  margin-top: 20px;
+}
+
+.telegramSection h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.8em;
+}
+
+.telegramSection h3 {
+  color: #555;
+  margin: 25px 0 15px 0;
+  font-size: 1.3em;
+}
+
+/* Manual Section */
+.manualSection {
+  margin-bottom: 30px;
+}
+
+.manualBtn {
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.manualBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.manualContent {
+  margin-top: 20px;
+  padding: 25px;
+  background: #f8f9ff;
+  border-radius: 15px;
+  border: 2px solid #e0e7ff;
+}
+
+.manualContent h3 {
+  color: #667eea;
+  margin-bottom: 20px;
+  font-size: 1.5em;
+}
+
+.manualStep {
+  margin-bottom: 25px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border-left: 4px solid #667eea;
+}
+
+.manualStep h4 {
+  color: #333;
+  margin-bottom: 15px;
+  font-size: 1.2em;
+}
+
+.manualStep ol {
+  margin-left: 20px;
+  line-height: 1.8;
+  color: #555;
+}
+
+.manualStep li {
+  margin-bottom: 8px;
+}
+
+.manualStep code {
+  background: #f0f0f0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  color: #d63384;
+}
+
+.manualStep p {
+  margin-top: 10px;
+  color: #666;
+  font-style: italic;
+}
+
+/* Bot Connection */
+.botConnection {
+  margin-bottom: 30px;
+  padding: 25px;
+  background: #f8f9ff;
+  border-radius: 15px;
+  border: 2px solid #e0e7ff;
+}
+
+.connectForm {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.tokenInput {
+  flex: 1;
+  min-width: 250px;
+  padding: 12px 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1em;
+  transition: all 0.3s;
+}
+
+.tokenInput:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.connectBtn {
+  padding: 12px 24px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.connectBtn:hover:not(:disabled) {
+  background: #45a049;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+}
+
+.connectBtn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.connectedStatus {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.connectedStatus p {
+  flex: 1;
+  color: #2e7d32;
+  font-weight: 600;
+  font-size: 1.1em;
+}
+
+.disconnectBtn,
+.refreshBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.disconnectBtn {
+  background: #f44336;
+  color: white;
+}
+
+.disconnectBtn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+.refreshBtn {
+  background: #2196f3;
+  color: white;
+}
+
+.refreshBtn:hover {
+  background: #1976d2;
+  transform: translateY(-2px);
+}
+
+/* Channels Section */
+.channelsSection {
+  margin-bottom: 30px;
+  padding: 25px;
+  background: #f8f9ff;
+  border-radius: 15px;
+  border: 2px solid #e0e7ff;
+}
+
+.channelsList {
+  display: grid;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.channelItem {
+  padding: 15px;
+  background: white;
+  border-radius: 10px;
+  border: 2px solid #e0e7ff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 15px;
+}
+
+.channelItem > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.channelItem strong {
+  color: #333;
+  font-size: 1.1em;
+}
+
+.channelId {
+  color: #666;
+  font-size: 0.9em;
+  font-family: 'Courier New', monospace;
+}
+
+.channelUsername {
+  color: #667eea;
+  font-size: 0.9em;
+}
+
+/* Schedule Section */
+.scheduleSection {
+  margin-bottom: 30px;
+  padding: 25px;
+  background: #f8f9ff;
+  border-radius: 15px;
+  border: 2px solid #e0e7ff;
+}
+
+.scheduleForm {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.formInput {
+  padding: 12px 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 1em;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.dateTimeRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.scheduleBtn {
+  padding: 15px 30px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.scheduleBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+/* Scheduled Posts */
+.scheduledSection {
+  margin-top: 30px;
+  padding: 25px;
+  background: #fff3cd;
+  border-radius: 15px;
+  border: 2px solid #ffc107;
+}
+
+.scheduledList {
+  display: grid;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.scheduledItem {
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border: 2px solid #ffc107;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.scheduledInfo {
+  flex: 1;
+  min-width: 250px;
+  line-height: 1.8;
+  color: #555;
+}
+
+.scheduledInfo strong {
+  color: #333;
+}
+
+.scheduledActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sendNowBtn,
+.deleteBtn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.sendNowBtn {
+  background: #4caf50;
+  color: white;
+}
+
+.sendNowBtn:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+}
+
+.deleteBtn {
+  background: #f44336;
+  color: white;
+}
+
+.deleteBtn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+/* Add Channel Styles */
+.addChannelBtn {
+  padding: 10px 20px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.addChannelBtn:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+}
+
+.addChannelForm {
+  margin-bottom: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
+  border: 2px solid #e0e7ff;
+}
+
+.addChannelSubmitBtn {
+  padding: 12px 24px;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  width: 100%;
+}
+
+.addChannelSubmitBtn:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+}
+
+.removeChannelBtn {
+  padding: 8px 12px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s;
+  flex-shrink: 0;
+}
+
+.removeChannelBtn:hover {
+  background: #d32f2f;
+  transform: translateY(-2px);
+}
+
+/* Edit Button */
+.editBtn {
+  padding: 10px 20px;
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.editBtn:hover {
+  background: #1976d2;
+  transform: translateY(-2px);
+}
+
+/* Modal Styles */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalContent {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modalContent h3 {
+  margin-bottom: 20px;
+  color: #333;
+  font-size: 1.5em;
+}
+
+.modalContent label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 600;
+  color: #555;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 20px;
@@ -302,5 +823,40 @@
 
   .durationGrid {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .tab {
+    width: 100%;
+    text-align: center;
+  }
+
+  .connectForm {
+    flex-direction: column;
+  }
+
+  .tokenInput {
+    width: 100%;
+  }
+
+  .dateTimeRow {
+    grid-template-columns: 1fr;
+  }
+
+  .scheduledItem {
+    flex-direction: column;
+  }
+
+  .scheduledActions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .sendNowBtn,
+  .deleteBtn {
+    flex: 1;
   }
 }
