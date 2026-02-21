@@ -14,6 +14,18 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método não permitido' });
   }
 
+  // Verificar Content-Length antes de processar (limite Vercel: 50MB)
+  const contentLength = req.headers['content-length'];
+  if (contentLength) {
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    const fileSize = parseInt(contentLength, 10);
+    if (fileSize > maxSize) {
+      return res.status(413).json({ 
+        error: 'Arquivo muito grande. Tamanho máximo: 50MB. Tamanho do arquivo: ' + Math.round(fileSize / 1024 / 1024) + 'MB. Por favor, comprima o vídeo antes de enviar.'
+      });
+    }
+  }
+
   try {
     // Usar /tmp para armazenamento temporário na Vercel
     const tmpDir = process.env.VERCEL ? '/tmp' : path.join(process.cwd(), 'uploads');

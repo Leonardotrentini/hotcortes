@@ -27,11 +27,18 @@ export default function Home() {
 
   const handleFileSelect = (file) => {
     if (file && file.type.startsWith('video/')) {
+      // Validar tamanho imediatamente ao selecionar
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (file.size > maxSize) {
+        alert(`❌ Arquivo muito grande!\n\nTamanho máximo: 50MB\nTamanho do arquivo: ${formatFileSize(file.size)}\n\nPor favor, selecione um vídeo menor ou comprima este arquivo.`);
+        return;
+      }
+      
       setVideoFile(file);
       setJobId(null);
       setStatus(null);
     } else {
-      alert('Por favor, selecione um arquivo de vídeo válido');
+      alert('Por favor, selecione um arquivo de vídeo válido (MP4, MOV, AVI, MKV, WEBM)');
     }
   };
 
@@ -62,6 +69,13 @@ export default function Home() {
       return;
     }
 
+    // Validar tamanho do arquivo (50MB = limite Vercel Hobby)
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (videoFile.size > maxSize) {
+      alert(`❌ Arquivo muito grande!\n\nTamanho máximo permitido: 50MB\nTamanho do seu arquivo: ${formatFileSize(videoFile.size)}\n\nPor favor, comprima o vídeo antes de enviar.`);
+      return;
+    }
+
     setUploading(true);
     try {
       const formData = new FormData();
@@ -86,16 +100,27 @@ export default function Home() {
       
       if (error.response) {
         // Erro da API
-        errorMessage = error.response.data?.error || error.response.data?.message || JSON.stringify(error.response.data);
+        const status = error.response.status;
+        const data = error.response.data;
+        
+        if (status === 413) {
+          errorMessage = '❌ Arquivo muito grande!\n\nO arquivo excede o limite de 50MB.\nPor favor, comprima o vídeo antes de enviar.';
+        } else if (status === 400) {
+          errorMessage = data?.error || 'Arquivo inválido. Verifique o formato e tamanho.';
+        } else if (status === 500) {
+          errorMessage = 'Erro no servidor. Tente novamente em alguns instantes.';
+        } else {
+          errorMessage = data?.error || data?.message || `Erro ${status}: ${JSON.stringify(data)}`;
+        }
       } else if (error.request) {
         // Erro de rede
-        errorMessage = 'Erro de conexão. Verifique sua internet.';
+        errorMessage = '❌ Erro de conexão!\n\nVerifique sua internet e tente novamente.';
       } else {
         // Outro erro
         errorMessage = error.message || 'Erro ao fazer upload';
       }
       
-      alert('Erro ao fazer upload do vídeo: ' + errorMessage);
+      alert('Erro ao fazer upload do vídeo:\n\n' + errorMessage);
       setUploading(false);
     }
   };

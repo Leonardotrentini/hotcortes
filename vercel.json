@@ -3,8 +3,5 @@
     "pages/api/**/*.js": {
       "maxDuration": 300
     }
-  },
-  "limits": {
-    "maxRequestSize": 52428800
   }
 }
