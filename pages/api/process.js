@@ -184,6 +184,8 @@ export default async function handler(req, res) {
   console.log('RAILWAY env:', process.env.RAILWAY_ENVIRONMENT);
   console.log('FFmpeg path:', ffmpegPath);
   console.log('FFmpeg exists:', ffmpegPath ? fs.existsSync(ffmpegPath) : 'N/A');
+  console.log('FFprobe path:', ffprobeStatic);
+  console.log('FFprobe exists:', ffprobeStatic ? fs.existsSync(ffprobeStatic) : 'N/A');
 
   try {
     // Verificar FFmpeg antes de processar
@@ -227,15 +229,49 @@ export default async function handler(req, res) {
     const durationSeconds = parseDurationToSeconds(duration);
     console.log('Duração desejada:', durationSeconds, 'segundos');
 
+    // Verificar se FFprobe está configurado antes de tentar usar
+    if (!ffprobeStatic || !fs.existsSync(ffprobeStatic)) {
+      console.error('FFprobe não está disponível!');
+      console.error('ffprobeStatic:', ffprobeStatic);
+      console.error('ffprobeStatic existe:', ffprobeStatic ? fs.existsSync(ffprobeStatic) : 'N/A');
+      return res.status(500).json({ 
+        error: 'FFprobe não está configurado ou não foi encontrado no servidor.',
+        details: `FFprobe path: ${ffprobeStatic || 'NÃO ENCONTRADO'}`,
+        suggestion: 'Verifique se ffprobe-static está instalado corretamente.'
+      });
+    }
+
     let videoDuration;
     try {
+      console.log('=== Tentando obter duração do vídeo ===');
+      console.log('FFprobe path:', ffprobeStatic);
+      console.log('FFprobe existe:', fs.existsSync(ffprobeStatic));
+      console.log('Video path:', videoPath);
+      console.log('Video existe:', fs.existsSync(videoPath));
+      
       videoDuration = await getVideoDuration(videoPath);
-      console.log('Duração do vídeo:', videoDuration, 'segundos');
+      console.log('✅ Duração do vídeo obtida:', videoDuration, 'segundos');
     } catch (error) {
-      console.error('Erro ao obter duração do vídeo:', error);
+      console.error('❌ Erro ao obter duração do vídeo:');
+      console.error('Tipo do erro:', error.name);
+      console.error('Mensagem:', error.message);
+      console.error('Stack:', error.stack);
+      
+      // Retornar erro mais detalhado
+      let errorDetails = error.message;
+      if (error.message && error.message.includes('spawn')) {
+        errorDetails = 'FFprobe não pode ser executado. Verifique permissões e instalação.';
+      } else if (error.message && error.message.includes('ENOENT')) {
+        errorDetails = 'FFprobe não encontrado. Verifique se está instalado.';
+      }
+      
       return res.status(500).json({ 
         error: 'Erro ao analisar vídeo. Verifique se o arquivo é um vídeo válido.',
-        details: error.message 
+        details: errorDetails,
+        ffprobePath: ffprobeStatic,
+        ffprobeExists: ffprobeStatic ? fs.existsSync(ffprobeStatic) : false,
+        videoPath: videoPath,
+        videoExists: fs.existsSync(videoPath)
       });
     }
 
