@@ -1,5 +1,7 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import styles from '../styles/Home.module.css';
 
 const DURATIONS = [
@@ -22,18 +24,121 @@ export default function Home() {
   const [status, setStatus] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState(0);
+  const [ffmpegLoaded, setFfmpegLoaded] = useState(false);
+  const ffmpegRef = useRef(null);
   const fileInputRef = useRef(null);
   const dragCounter = useRef(0);
 
+  // Carregar FFmpeg uma vez
+  useEffect(() => {
+    const loadFFmpeg = async () => {
+      try {
+        const ffmpeg = new FFmpeg();
+        ffmpegRef.current = ffmpeg;
+
+        ffmpeg.on('log', ({ message }) => {
+          console.log('FFmpeg:', message);
+        });
+
+        ffmpeg.on('progress', ({ progress }) => {
+          setCompressionProgress(Math.round(progress * 100));
+        });
+
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+
+        setFfmpegLoaded(true);
+        console.log('FFmpeg carregado com sucesso');
+      } catch (error) {
+        console.error('Erro ao carregar FFmpeg:', error);
+      }
+    };
+
+    loadFFmpeg();
+  }, []);
+
+  // Função para comprimir vídeo
+  const compressVideo = async (file) => {
+    const maxSize = 50 * 1024 * 1024; // 50MB
+    if (file.size <= maxSize) {
+      return file; // Não precisa comprimir
+    }
+
+    if (!ffmpegLoaded || !ffmpegRef.current) {
+      throw new Error('FFmpeg ainda não foi carregado. Aguarde alguns segundos.');
+    }
+
+    setCompressing(true);
+    setCompressionProgress(0);
+
+    try {
+      const ffmpeg = ffmpegRef.current;
+      const inputFileName = 'input.' + file.name.split('.').pop();
+      const outputFileName = 'output.mp4';
+
+      // Escrever arquivo de entrada
+      await ffmpeg.writeFile(inputFileName, await fetchFile(file));
+
+      // Calcular qualidade baseada no tamanho original
+      const originalSizeMB = file.size / (1024 * 1024);
+      let crf = 28; // Qualidade padrão (maior = menor arquivo)
+      let scale = '1920:1080'; // Resolução padrão
+
+      // Ajustar qualidade baseado no tamanho
+      if (originalSizeMB > 200) {
+        crf = 32;
+        scale = '1280:720';
+      } else if (originalSizeMB > 100) {
+        crf = 30;
+        scale = '1280:720';
+      } else if (originalSizeMB > 50) {
+        crf = 28;
+        scale = '1920:1080';
+      }
+
+      // Executar compressão
+      await ffmpeg.exec([
+        '-i', inputFileName,
+        '-c:v', 'libx264',
+        '-crf', crf.toString(),
+        '-preset', 'fast',
+        '-vf', `scale=${scale}:force_original_aspect_ratio=decrease`,
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart',
+        outputFileName
+      ]);
+
+      // Ler arquivo comprimido
+      const data = await ffmpeg.readFile(outputFileName);
+      const compressedBlob = new Blob([data], { type: 'video/mp4' });
+      const compressedFile = new File([compressedBlob], file.name, { type: 'video/mp4' });
+
+      // Limpar arquivos temporários
+      await ffmpeg.deleteFile(inputFileName);
+      await ffmpeg.deleteFile(outputFileName);
+
+      setCompressing(false);
+      setCompressionProgress(0);
+
+      console.log(`Compressão concluída: ${formatFileSize(file.size)} → ${formatFileSize(compressedFile.size)}`);
+
+      return compressedFile;
+    } catch (error) {
+      setCompressing(false);
+      setCompressionProgress(0);
+      console.error('Erro na compressão:', error);
+      throw error;
+    }
+  };
+
   const handleFileSelect = (file) => {
     if (file && file.type.startsWith('video/')) {
-      // Validar tamanho imediatamente ao selecionar
-      const maxSize = 50 * 1024 * 1024; // 50MB
-      if (file.size > maxSize) {
-        alert(`❌ Arquivo muito grande!\n\nTamanho máximo: 50MB\nTamanho do arquivo: ${formatFileSize(file.size)}\n\nPor favor, selecione um vídeo menor ou comprima este arquivo.`);
-        return;
-      }
-      
       setVideoFile(file);
       setJobId(null);
       setStatus(null);
@@ -69,17 +174,39 @@ export default function Home() {
       return;
     }
 
-    // Validar tamanho do arquivo (50MB = limite Vercel Hobby)
-    const maxSize = 50 * 1024 * 1024; // 50MB
-    if (videoFile.size > maxSize) {
-      alert(`❌ Arquivo muito grande!\n\nTamanho máximo permitido: 50MB\nTamanho do seu arquivo: ${formatFileSize(videoFile.size)}\n\nPor favor, comprima o vídeo antes de enviar.`);
-      return;
-    }
-
     setUploading(true);
+    let fileToUpload = videoFile;
+
     try {
+      // Comprimir automaticamente se necessário
+      const maxSize = 50 * 1024 * 1024; // 50MB
+      if (videoFile.size > maxSize) {
+        if (!ffmpegLoaded) {
+          alert('FFmpeg ainda está carregando. Aguarde alguns segundos e tente novamente.');
+          setUploading(false);
+          return;
+        }
+
+        try {
+          fileToUpload = await compressVideo(videoFile);
+          
+          // Verificar se ainda está acima do limite após compressão
+          if (fileToUpload.size > maxSize) {
+            alert(`⚠️ O vídeo foi comprimido, mas ainda está acima de 50MB.\n\nTamanho original: ${formatFileSize(videoFile.size)}\nTamanho após compressão: ${formatFileSize(fileToUpload.size)}\n\nTente com um vídeo menor ou faça upgrade para plano Pro (100MB).`);
+            setUploading(false);
+            return;
+          }
+        } catch (compressionError) {
+          console.error('Erro na compressão:', compressionError);
+          alert(`Erro ao comprimir vídeo: ${compressionError.message}\n\nTente comprimir manualmente ou use um vídeo menor.`);
+          setUploading(false);
+          return;
+        }
+      }
+
+      // Fazer upload
       const formData = new FormData();
-      formData.append('video', videoFile);
+      formData.append('video', fileToUpload);
 
       const response = await axios.post('/api/upload', formData, {
         headers: {
@@ -244,14 +371,35 @@ export default function Home() {
         </div>
       </div>
 
+      {compressing && (
+        <div className={styles.compressionSection}>
+          <h3>🔄 Comprimindo vídeo automaticamente...</h3>
+          <div className={styles.progressBar}>
+            <div
+              className={styles.progressFill}
+              style={{ width: `${compressionProgress}%` }}
+            />
+          </div>
+          <p className={styles.progressText}>{compressionProgress}%</p>
+          <p style={{ fontSize: '0.9em', color: '#666', marginTop: '10px' }}>
+            Isso pode levar alguns minutos dependendo do tamanho do vídeo...
+          </p>
+        </div>
+      )}
+
       <div className={styles.actions}>
         <button
           className={styles.processBtn}
           onClick={handleUpload}
-          disabled={!videoFile || uploading || processing}
+          disabled={!videoFile || uploading || processing || compressing}
         >
-          {uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '✂️ Processar Vídeo'}
+          {compressing ? '🔄 Comprimindo...' : uploading ? '⏳ Enviando...' : processing ? '⏳ Processando...' : '✂️ Processar Vídeo'}
         </button>
+        {videoFile && videoFile.size > 50 * 1024 * 1024 && !compressing && (
+          <p style={{ textAlign: 'center', marginTop: '10px', color: '#856404', fontSize: '0.9em' }}>
+            ⚠️ Vídeo será comprimido automaticamente antes do upload
+          </p>
+        )}
       </div>
 
       {status && (

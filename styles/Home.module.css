@@ -239,6 +239,33 @@
   color: white;
 }
 
+.compressionSection {
+  margin: 20px 0;
+  padding: 25px;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+  border-radius: 15px;
+  text-align: center;
+  border: 2px solid #ffc107;
+  box-shadow: 0 5px 15px rgba(255, 193, 7, 0.3);
+}
+
+.compressionSection h3 {
+  color: #856404;
+  margin-bottom: 20px;
+  font-size: 1.3em;
+}
+
+.compressionSection .progressBar {
+  margin: 15px 0;
+}
+
+.compressionSection .progressText {
+  color: #856404;
+  font-weight: 600;
+  font-size: 1.1em;
+  margin-top: 10px;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 20px;
