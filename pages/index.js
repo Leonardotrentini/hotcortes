@@ -192,7 +192,7 @@ export default function Home() {
       setCompressionInfo(null); // Limpar info de compressão anterior
       
       // Mostrar aviso se arquivo é grande
-      const maxSize = 50 * 1024 * 1024; // 50MB
+      const maxSize = 500 * 1024 * 1024; // 500MB (Railway permite mais)
       if (file.size > maxSize) {
         // Não bloquear, apenas informar que será comprimido
         console.log('Arquivo grande detectado, será comprimido automaticamente');
