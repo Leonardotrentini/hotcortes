@@ -21,10 +21,12 @@ function cleanLargeFiles() {
             files.forEach(file => {
               const filePath = path.join(dirPath, file);
               if (file.endsWith('.mp4') || file.endsWith('.zip')) {
-                const stats = fs.statSync(filePath);
-                if (stats.size > 10 * 1024 * 1024) { // > 10MB
+                try {
+                  const stats = fs.statSync(filePath);
                   console.log(`  Removendo: ${filePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
                   fs.unlinkSync(filePath);
+                } catch (error) {
+                  // Ignorar erros ao remover arquivos
                 }
               }
             });
@@ -38,11 +40,13 @@ function cleanLargeFiles() {
         const files = fs.readdirSync(uploadsFilesDir);
         files.forEach(file => {
           const filePath = path.join(uploadsFilesDir, file);
-          if (file.endsWith('.mp4')) {
-            const stats = fs.statSync(filePath);
-            if (stats.size > 10 * 1024 * 1024) { // > 10MB
+          if (file.endsWith('.mp4') || file.endsWith('.zip')) {
+            try {
+              const stats = fs.statSync(filePath);
               console.log(`  Removendo: ${filePath} (${(stats.size / 1024 / 1024).toFixed(2)} MB)`);
               fs.unlinkSync(filePath);
+            } catch (error) {
+              // Ignorar erros ao remover arquivos
             }
           }
         });
