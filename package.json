@@ -4,6 +4,7 @@
   "description": "Ferramenta de corte de vídeos - Deploy Railway",
   "scripts": {
     "dev": "next dev",
+    "prebuild": "node scripts/prebuild.js",
     "build": "next build",
     "start": "next start -p ${PORT:-3000}",
     "postinstall": "echo 'FFmpeg será instalado automaticamente pelo Railway'"
