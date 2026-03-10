@@ -1,5 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import { readFile, fileExists, writeFile, ensureDir } from '../../../lib/telegramStorage';
+import { readFile, fileExists, writeFile, ensureDir } from '../../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
