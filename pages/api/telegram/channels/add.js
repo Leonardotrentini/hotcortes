@@ -1,6 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists, writeFile, ensureDir } from '../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -15,13 +14,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'ID do canal é obrigatório' });
     }
 
-    const botDataPath = path.join(process.cwd(), 'telegram_bots', 'active_bot.json');
-    
-    if (!fs.existsSync(botDataPath)) {
+    if (!fileExists('active_bot.json')) {
       return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
     }
 
-    const botData = JSON.parse(fs.readFileSync(botDataPath, 'utf8'));
+    const botDataContent = readFile('active_bot.json');
+    if (!botDataContent) {
+      return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
+    }
+
+    const botData = JSON.parse(botDataContent);
     const bot = new TelegramBot(botData.token, { polling: false });
 
     // Tentar validar o canal
@@ -66,12 +68,14 @@ export default async function handler(req, res) {
     }
 
     // Salvar canal na lista de canais conhecidos
-    const knownChannelsPath = path.join(process.cwd(), 'telegram_bots', 'known_channels.json');
     let knownChannels = [];
 
-    if (fs.existsSync(knownChannelsPath)) {
+    if (fileExists('known_channels.json')) {
       try {
-        knownChannels = JSON.parse(fs.readFileSync(knownChannelsPath, 'utf8'));
+        const knownChannelsContent = readFile('known_channels.json');
+        if (knownChannelsContent) {
+          knownChannels = JSON.parse(knownChannelsContent);
+        }
       } catch (e) {
         console.warn('Erro ao ler canais conhecidos, criando nova lista');
         knownChannels = [];
@@ -94,15 +98,9 @@ export default async function handler(req, res) {
     knownChannels.push(channelInfo);
 
     // Garantir que o diretório existe
-    const botDataDir = path.join(process.cwd(), 'telegram_bots');
-    if (!fs.existsSync(botDataDir)) {
-      fs.mkdirSync(botDataDir, { recursive: true });
-    }
+    ensureDir('');
 
-    fs.writeFileSync(
-      knownChannelsPath,
-      JSON.stringify(knownChannels, null, 2)
-    );
+    writeFile('known_channels.json', knownChannels);
 
     res.status(200).json({
       success: true,

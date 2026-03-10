@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists } from '../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,13 +6,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const statsPath = path.join(process.cwd(), 'telegram_bots', 'message_stats.json');
-    
-    if (!fs.existsSync(statsPath)) {
+    if (!fileExists('message_stats.json')) {
       return res.status(200).json({ stats: {} });
     }
 
-    const messageStats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+    const statsContent = readFile('message_stats.json');
+    if (!statsContent) {
+      return res.status(200).json({ stats: {} });
+    }
+
+    const messageStats = JSON.parse(statsContent);
 
     res.status(200).json({
       success: true,

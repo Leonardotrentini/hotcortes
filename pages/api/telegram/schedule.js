@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists, writeFile, ensureDir } from '../../../lib/telegramStorage';
 import { v4 as uuidv4 } from 'uuid';
 
 export default async function handler(req, res) {
@@ -15,8 +14,7 @@ export default async function handler(req, res) {
     }
 
     // Verificar se bot está conectado
-    const botDataPath = path.join(process.cwd(), 'telegram_bots', 'active_bot.json');
-    if (!fs.existsSync(botDataPath)) {
+    if (!fileExists('active_bot.json')) {
       return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
     }
 
@@ -29,10 +27,7 @@ export default async function handler(req, res) {
     }
 
     // Salvar postagem agendada
-    const scheduledDir = path.join(process.cwd(), 'telegram_bots', 'scheduled');
-    if (!fs.existsSync(scheduledDir)) {
-      fs.mkdirSync(scheduledDir, { recursive: true });
-    }
+    ensureDir('scheduled');
 
     const postId = uuidv4();
     const scheduledPost = {
@@ -45,10 +40,7 @@ export default async function handler(req, res) {
       status: 'pending',
     };
 
-    fs.writeFileSync(
-      path.join(scheduledDir, `${postId}.json`),
-      JSON.stringify(scheduledPost, null, 2)
-    );
+    writeFile(`scheduled/${postId}.json`, scheduledPost);
 
     res.status(200).json({
       success: true,

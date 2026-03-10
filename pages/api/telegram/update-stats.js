@@ -1,6 +1,4 @@
-import TelegramBot from 'node-telegram-bot-api';
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists, writeFile } from '../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,12 +12,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'messageId e channelId são obrigatórios' });
     }
 
-    const statsPath = path.join(process.cwd(), 'telegram_bots', 'message_stats.json');
     let messageStats = {};
     
-    if (fs.existsSync(statsPath)) {
+    if (fileExists('message_stats.json')) {
       try {
-        messageStats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+        const statsContent = readFile('message_stats.json');
+        if (statsContent) {
+          messageStats = JSON.parse(statsContent);
+        }
       } catch (e) {
         messageStats = {};
       }
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
     
     messageStats[messageKey].lastUpdated = new Date().toISOString();
 
-    fs.writeFileSync(statsPath, JSON.stringify(messageStats, null, 2));
+    writeFile('message_stats.json', messageStats);
 
     res.status(200).json({
       success: true,

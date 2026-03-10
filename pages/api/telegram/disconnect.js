@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { deleteFile, fileExists } from '../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,10 +6,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const botDataPath = path.join(process.cwd(), 'telegram_bots', 'active_bot.json');
-    
-    if (fs.existsSync(botDataPath)) {
-      fs.unlinkSync(botDataPath);
+    if (fileExists('active_bot.json')) {
+      deleteFile('active_bot.json');
     }
 
     res.status(200).json({

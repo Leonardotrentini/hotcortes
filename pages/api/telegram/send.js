@@ -1,4 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
+import { readFile, fileExists, getFilePath, writeFile } from '../../../lib/telegramStorage';
 import fs from 'fs';
 import path from 'path';
 
@@ -14,13 +15,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'channelId e message são obrigatórios' });
     }
 
-    const botDataPath = path.join(process.cwd(), 'telegram_bots', 'active_bot.json');
-    
-    if (!fs.existsSync(botDataPath)) {
+    if (!fileExists('active_bot.json')) {
       return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
     }
 
-    const botData = JSON.parse(fs.readFileSync(botDataPath, 'utf8'));
+    const botDataContent = readFile('active_bot.json');
+    if (!botDataContent) {
+      return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
+    }
+
+    const botData = JSON.parse(botDataContent);
     const bot = new TelegramBot(botData.token, { polling: false });
 
     // Converter channelId para número se for string
@@ -48,7 +52,7 @@ export default async function handler(req, res) {
           // Se for arquivo local, ler e enviar como stream
           if (mediaUrl.startsWith('/api/telegram/media/')) {
             const filename = mediaUrl.split('/').pop();
-            const mediaPath = path.join(process.cwd(), 'telegram_bots', 'media', filename);
+            const mediaPath = getFilePath(`media/${filename}`);
             if (fs.existsSync(mediaPath)) {
               const ext = path.extname(filename).toLowerCase();
               if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
@@ -76,12 +80,14 @@ export default async function handler(req, res) {
       }
 
       // Salvar estatísticas iniciais da mensagem
-      const statsPath = path.join(process.cwd(), 'telegram_bots', 'message_stats.json');
       let messageStats = {};
       
-      if (fs.existsSync(statsPath)) {
+      if (fileExists('message_stats.json')) {
         try {
-          messageStats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+          const statsContent = readFile('message_stats.json');
+          if (statsContent) {
+            messageStats = JSON.parse(statsContent);
+          }
         } catch (e) {
           messageStats = {};
         }
@@ -98,7 +104,7 @@ export default async function handler(req, res) {
         lastUpdated: new Date().toISOString(),
       };
 
-      fs.writeFileSync(statsPath, JSON.stringify(messageStats, null, 2));
+      writeFile('message_stats.json', messageStats);
 
       res.status(200).json({
         success: true,

@@ -994,14 +994,17 @@ function TelegramTab() {
   const sortedDates = Object.keys(postsByDate).sort((a, b) => new Date(a) - new Date(b));
 
   const handleConnect = async () => {
-    if (!botToken || botToken.length < 20) {
+    // Remover espaços em branco do token
+    const trimmedToken = botToken.trim();
+    
+    if (!trimmedToken || trimmedToken.length < 20) {
       alert('❌ Token inválido! Por favor, insira um token válido do BotFather.');
       return;
     }
 
     setLoading(true);
     try {
-      const response = await axios.post('/api/telegram/connect', { token: botToken });
+      const response = await axios.post('/api/telegram/connect', { token: trimmedToken });
       if (response.data.success) {
         setIsConnected(true);
         setBotToken('***' + response.data.botInfo.username);
@@ -1287,6 +1290,15 @@ function TelegramTab() {
               placeholder="Cole o token do BotFather aqui..."
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
+              onPaste={(e) => {
+                e.preventDefault();
+                const pastedText = e.clipboardData.getData('text').trim();
+                setBotToken(pastedText);
+              }}
+              onBlur={(e) => {
+                // Remover espaços quando o campo perde o foco
+                setBotToken(e.target.value.trim());
+              }}
               className={styles.tokenInput}
             />
             <button

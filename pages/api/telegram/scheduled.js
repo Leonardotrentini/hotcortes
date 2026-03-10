@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists, listFiles } from '../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -7,32 +6,32 @@ export default async function handler(req, res) {
   }
 
   try {
-    const scheduledDir = path.join(process.cwd(), 'telegram_bots', 'scheduled');
-    
-    if (!fs.existsSync(scheduledDir)) {
-      return res.status(200).json({ posts: [] });
-    }
-
-    const files = fs.readdirSync(scheduledDir);
+    const files = listFiles('scheduled');
     const posts = [];
 
     for (const file of files) {
       if (file.endsWith('.json')) {
         try {
-          const postData = JSON.parse(
-            fs.readFileSync(path.join(scheduledDir, file), 'utf8')
-          );
+          const postContent = readFile(`scheduled/${file}`);
+          if (!postContent) {
+            continue;
+          }
+          const postData = JSON.parse(postContent);
           
           // Adicionar informações do canal se disponível
           if (postData.channelId) {
             // Tentar obter nome do canal dos canais conhecidos
-            const knownChannelsPath = path.join(process.cwd(), 'telegram_bots', 'known_channels.json');
-            if (fs.existsSync(knownChannelsPath)) {
+            if (fileExists('known_channels.json')) {
               try {
-                const knownChannels = JSON.parse(fs.readFileSync(knownChannelsPath, 'utf8'));
-                const channel = knownChannels.find(c => c.id === postData.channelId || c.id === parseInt(postData.channelId));
-                if (channel) {
-                  postData.channelTitle = channel.title || channel.username || `Canal ${postData.channelId}`;
+                const knownChannelsContent = readFile('known_channels.json');
+                if (knownChannelsContent) {
+                  const knownChannels = JSON.parse(knownChannelsContent);
+                  const channel = knownChannels.find(c => c.id === postData.channelId || c.id === parseInt(postData.channelId));
+                  if (channel) {
+                    postData.channelTitle = channel.title || channel.username || `Canal ${postData.channelId}`;
+                  } else {
+                    postData.channelTitle = `Canal ${postData.channelId}`;
+                  }
                 } else {
                   postData.channelTitle = `Canal ${postData.channelId}`;
                 }

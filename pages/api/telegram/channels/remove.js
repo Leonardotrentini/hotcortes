@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists, writeFile } from '../../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'DELETE') {
@@ -13,13 +12,16 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'ID do canal é obrigatório' });
     }
 
-    const knownChannelsPath = path.join(process.cwd(), 'telegram_bots', 'known_channels.json');
-    
-    if (!fs.existsSync(knownChannelsPath)) {
+    if (!fileExists('known_channels.json')) {
       return res.status(404).json({ error: 'Nenhum canal encontrado' });
     }
 
-    let knownChannels = JSON.parse(fs.readFileSync(knownChannelsPath, 'utf8'));
+    const knownChannelsContent = readFile('known_channels.json');
+    if (!knownChannelsContent) {
+      return res.status(404).json({ error: 'Nenhum canal encontrado' });
+    }
+
+    let knownChannels = JSON.parse(knownChannelsContent);
 
     // Remover canal
     const initialLength = knownChannels.length;
@@ -31,10 +33,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'Canal não encontrado' });
     }
 
-    fs.writeFileSync(
-      knownChannelsPath,
-      JSON.stringify(knownChannels, null, 2)
-    );
+    writeFile('known_channels.json', knownChannels);
 
     res.status(200).json({
       success: true,

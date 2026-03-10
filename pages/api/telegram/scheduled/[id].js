@@ -1,5 +1,4 @@
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists, writeFile, deleteFile } from '../../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method === 'PUT') {
@@ -11,14 +10,16 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'ID da postagem é obrigatório' });
       }
 
-      const scheduledDir = path.join(process.cwd(), 'telegram_bots', 'scheduled');
-      const postPath = path.join(scheduledDir, `${id}.json`);
-
-      if (!fs.existsSync(postPath)) {
+      if (!fileExists(`scheduled/${id}.json`)) {
         return res.status(404).json({ error: 'Postagem não encontrada' });
       }
 
-      const postData = JSON.parse(fs.readFileSync(postPath, 'utf8'));
+      const postContent = readFile(`scheduled/${id}.json`);
+      if (!postContent) {
+        return res.status(404).json({ error: 'Postagem não encontrada' });
+      }
+
+      const postData = JSON.parse(postContent);
       
       // Verificar se a postagem ainda está pendente
       if (postData.status === 'sent') {
@@ -38,7 +39,7 @@ export default async function handler(req, res) {
       if (mediaUrl !== undefined) postData.mediaUrl = mediaUrl || null;
       postData.updatedAt = new Date().toISOString();
 
-      fs.writeFileSync(postPath, JSON.stringify(postData, null, 2));
+      writeFile(`scheduled/${id}.json`, postData);
 
       res.status(200).json({
         success: true,
@@ -66,14 +67,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'ID da postagem é obrigatório' });
     }
 
-    const scheduledDir = path.join(process.cwd(), 'telegram_bots', 'scheduled');
-    const postPath = path.join(scheduledDir, `${id}.json`);
-
-    if (!fs.existsSync(postPath)) {
+    if (!fileExists(`scheduled/${id}.json`)) {
       return res.status(404).json({ error: 'Postagem não encontrada' });
     }
 
-    fs.unlinkSync(postPath);
+    deleteFile(`scheduled/${id}.json`);
 
     res.status(200).json({
       success: true,

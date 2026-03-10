@@ -1,6 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import fs from 'fs';
-import path from 'path';
+import { readFile, fileExists } from '../../../lib/telegramStorage';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -8,13 +7,16 @@ export default async function handler(req, res) {
   }
 
   try {
-    const botDataPath = path.join(process.cwd(), 'telegram_bots', 'active_bot.json');
-    
-    if (!fs.existsSync(botDataPath)) {
+    if (!fileExists('active_bot.json')) {
       return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
     }
 
-    const botData = JSON.parse(fs.readFileSync(botDataPath, 'utf8'));
+    const botDataContent = readFile('active_bot.json');
+    if (!botDataContent) {
+      return res.status(400).json({ error: 'Nenhum bot conectado. Conecte um bot primeiro.' });
+    }
+
+    const botData = JSON.parse(botDataContent);
     const bot = new TelegramBot(botData.token, { polling: false });
 
     // Obter chats onde o bot está (canais e grupos)
@@ -24,10 +26,16 @@ export default async function handler(req, res) {
     const channels = [];
 
     // Tentar obter informações de canais conhecidos (se houver)
-    const knownChannelsPath = path.join(process.cwd(), 'telegram_bots', 'known_channels.json');
+    let knownChannels = [];
     
-    if (fs.existsSync(knownChannelsPath)) {
-      const knownChannels = JSON.parse(fs.readFileSync(knownChannelsPath, 'utf8'));
+    if (fileExists('known_channels.json')) {
+      const knownChannelsContent = readFile('known_channels.json');
+      if (knownChannelsContent) {
+        knownChannels = JSON.parse(knownChannelsContent);
+      }
+    }
+    
+    if (knownChannels.length > 0) {
       
       for (const channelInfo of knownChannels) {
         try {

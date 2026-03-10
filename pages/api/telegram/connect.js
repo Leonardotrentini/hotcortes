@@ -1,6 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
-import fs from 'fs';
-import path from 'path';
+import { writeFile, fileExists, ensureDir } from '../../../lib/telegramStorage';
 
 // Armazenar instâncias de bots ativos (em produção, usar banco de dados)
 let activeBots = {};
@@ -13,24 +12,29 @@ export default async function handler(req, res) {
   try {
     const { token } = req.body;
 
-    if (!token || token.length < 20) {
+    // Remover espaços em branco do token
+    const trimmedToken = token ? token.trim() : '';
+
+    if (!trimmedToken || trimmedToken.length < 20) {
       return res.status(400).json({ error: 'Token inválido. Por favor, forneça um token válido do BotFather.' });
     }
 
+    // Validar formato básico do token (deve ter o formato: número:hash)
+    if (!/^\d+:[A-Za-z0-9_-]+$/.test(trimmedToken)) {
+      return res.status(400).json({ error: 'Formato de token inválido. O token deve ter o formato: número:hash' });
+    }
+
     // Verificar se o token é válido tentando obter informações do bot
-    const bot = new TelegramBot(token, { polling: false });
+    const bot = new TelegramBot(trimmedToken, { polling: false });
     
     try {
       const botInfo = await bot.getMe();
       
-      // Salvar token de forma segura (em produção, usar variáveis de ambiente ou banco de dados)
-      const botDataDir = path.join(process.cwd(), 'telegram_bots');
-      if (!fs.existsSync(botDataDir)) {
-        fs.mkdirSync(botDataDir, { recursive: true });
-      }
+      // Salvar token de forma segura (usa /tmp no Vercel ou memória como fallback)
+      ensureDir('');
 
       const botData = {
-        token: token,
+        token: trimmedToken,
         botInfo: {
           id: botInfo.id,
           username: botInfo.username,
@@ -39,10 +43,7 @@ export default async function handler(req, res) {
         connectedAt: new Date().toISOString(),
       };
 
-      fs.writeFileSync(
-        path.join(botDataDir, 'active_bot.json'),
-        JSON.stringify(botData, null, 2)
-      );
+      writeFile('active_bot.json', botData);
 
       // Armazenar bot ativo
       activeBots[botInfo.id] = bot;
@@ -66,8 +67,18 @@ export default async function handler(req, res) {
       });
     } catch (error) {
       console.error('Erro ao conectar bot:', error);
+      console.error('Token recebido (primeiros 10 caracteres):', trimmedToken.substring(0, 10) + '...');
+      
+      // Mensagem de erro mais específica
+      let errorMessage = 'Token inválido ou bot não encontrado. Verifique o token e tente novamente.';
+      if (error.response) {
+        errorMessage += ` Detalhes: ${error.response.description || error.message}`;
+      } else if (error.message) {
+        errorMessage += ` Detalhes: ${error.message}`;
+      }
+      
       return res.status(400).json({ 
-        error: 'Token inválido ou bot não encontrado. Verifique o token e tente novamente.',
+        error: errorMessage,
         details: error.message 
       });
     }
